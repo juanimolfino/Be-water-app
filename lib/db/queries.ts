@@ -1,8 +1,27 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
-import { credits, jobs, subscriptions, transactions, users, type JobType } from "@/lib/db/schema";
+import {
+  activities,
+  credits,
+  diveCenters,
+  jobs,
+  sales,
+  subscriptions,
+  transactions,
+  users,
+  type Currency,
+  type JobType,
+  type PaymentMethod,
+  type Role
+} from "@/lib/db/schema";
 import { sendPurchaseConfirmationEmail, sendWelcomeEmail } from "@/lib/email/send";
 import type { User } from "@supabase/supabase-js";
+
+function roleForNewSignup(email: string): Role {
+  const superadminEmail = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase();
+  if (superadminEmail && email.trim().toLowerCase() === superadminEmail) return "superadmin";
+  return "admin";
+}
 
 export async function ensureUserProfile(authUser: User) {
   const db = getDb();
@@ -18,7 +37,8 @@ export async function ensureUserProfile(authUser: User) {
       .values({
         authUserId: authUser.id,
         email,
-        fullName: authUser.user_metadata?.full_name ?? authUser.user_metadata?.name ?? null
+        fullName: authUser.user_metadata?.full_name ?? authUser.user_metadata?.name ?? null,
+        role: roleForNewSignup(email)
       })
       .onConflictDoNothing({ target: users.authUserId })
       .returning();
@@ -172,4 +192,234 @@ export async function addCredits(userId: string, amount: number, metadata: Recor
     return true;
   });
   if (applied && profile?.email && amount > 0) await sendPurchaseConfirmationEmail(profile.email, amount);
+}
+
+// --- Dive centers ---------------------------------------------------------
+
+export async function createDiveCenter(input: {
+  ownerUserId: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  officeLocation?: string;
+}) {
+  const db = getDb();
+  return db.transaction(async (tx) => {
+    const [center] = await tx
+      .insert(diveCenters)
+      .values({
+        ownerUserId: input.ownerUserId,
+        name: input.name,
+        phone: input.phone || null,
+        email: input.email || null,
+        officeLocation: input.officeLocation || null
+      })
+      .returning();
+
+    await tx.update(users).set({ diveCenterId: center.id, updatedAt: new Date() }).where(eq(users.id, input.ownerUserId));
+
+    return center;
+  });
+}
+
+export async function getDiveCenterById(id: string) {
+  return getDb().query.diveCenters.findFirst({ where: eq(diveCenters.id, id) });
+}
+
+export async function listDiveCentersWithStats() {
+  const db = getDb();
+  const centers = await db.query.diveCenters.findMany({ orderBy: desc(diveCenters.createdAt) });
+
+  return Promise.all(
+    centers.map(async (center) => {
+      const [[activityCount], [sellerCount], [pendingCount], [approvedTotal]] = await Promise.all([
+        db.select({ count: sql<number>`count(*)::int` }).from(activities).where(eq(activities.diveCenterId, center.id)),
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(users)
+          .where(and(eq(users.diveCenterId, center.id), eq(users.role, "seller"))),
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(sales)
+          .where(and(eq(sales.diveCenterId, center.id), eq(sales.commissionStatus, "pending"))),
+        db
+          .select({ total: sql<string>`coalesce(sum(${sales.commissionAmount}), 0)` })
+          .from(sales)
+          .where(and(eq(sales.diveCenterId, center.id), eq(sales.commissionStatus, "approved")))
+      ]);
+
+      return {
+        center,
+        activityCount: activityCount?.count ?? 0,
+        sellerCount: sellerCount?.count ?? 0,
+        pendingSalesCount: pendingCount?.count ?? 0,
+        approvedCommissionTotal: approvedTotal?.total ?? "0"
+      };
+    })
+  );
+}
+
+// --- Activities -------------------------------------------------------------
+
+export async function listActivitiesForCenter(diveCenterId: string) {
+  return getDb().query.activities.findMany({
+    where: eq(activities.diveCenterId, diveCenterId),
+    orderBy: desc(activities.createdAt)
+  });
+}
+
+export async function createActivity(input: {
+  diveCenterId: string;
+  createdByUserId: string;
+  providerName: string;
+  isOwnActivity: boolean;
+  tourName: string;
+  rackPrice?: string;
+  netPrice?: string;
+  commissionAmount?: string;
+  currency: Currency;
+  phone?: string;
+  officeLocation?: string;
+  meetingPoint?: string;
+  distanceToActivity?: string;
+  meetingTime?: string;
+  duration?: string;
+  tourLocation?: string;
+  includes?: string;
+  excludes?: string;
+  whatToBring?: string;
+  whatYouWillSee?: string;
+}) {
+  const [activity] = await getDb()
+    .insert(activities)
+    .values({
+      diveCenterId: input.diveCenterId,
+      createdByUserId: input.createdByUserId,
+      providerName: input.providerName,
+      isOwnActivity: input.isOwnActivity,
+      tourName: input.tourName,
+      rackPrice: input.rackPrice || null,
+      netPrice: input.netPrice || null,
+      commissionAmount: input.commissionAmount || null,
+      currency: input.currency,
+      phone: input.phone || null,
+      officeLocation: input.officeLocation || null,
+      meetingPoint: input.meetingPoint || null,
+      distanceToActivity: input.distanceToActivity || null,
+      meetingTime: input.meetingTime || null,
+      duration: input.duration || null,
+      tourLocation: input.tourLocation || null,
+      includes: input.includes || null,
+      excludes: input.excludes || null,
+      whatToBring: input.whatToBring || null,
+      whatYouWillSee: input.whatYouWillSee || null
+    })
+    .returning();
+  return activity;
+}
+
+export async function getActivityForCenter(activityId: string, diveCenterId: string) {
+  return getDb().query.activities.findFirst({
+    where: and(eq(activities.id, activityId), eq(activities.diveCenterId, diveCenterId))
+  });
+}
+
+// --- Sellers ------------------------------------------------------------
+
+export async function listSellersForCenter(diveCenterId: string) {
+  return getDb().query.users.findMany({
+    where: and(eq(users.diveCenterId, diveCenterId), eq(users.role, "seller")),
+    orderBy: desc(users.createdAt)
+  });
+}
+
+export async function createSellerProfile(input: {
+  authUserId: string;
+  email: string;
+  fullName?: string;
+  diveCenterId: string;
+}) {
+  const [seller] = await getDb()
+    .insert(users)
+    .values({
+      authUserId: input.authUserId,
+      email: input.email,
+      fullName: input.fullName || null,
+      role: "seller",
+      diveCenterId: input.diveCenterId
+    })
+    .returning();
+  return seller;
+}
+
+// --- Sales ----------------------------------------------------------------
+
+export async function createSale(input: {
+  diveCenterId: string;
+  activityId: string;
+  sellerId: string;
+  quantity: number;
+  unitPrice: number;
+  currency: Currency;
+  paymentMethod: PaymentMethod;
+  commissionPerUnit: number;
+  notes?: string;
+}) {
+  const grossAmount = (input.quantity * input.unitPrice).toFixed(2);
+  const commissionAmount = (input.quantity * input.commissionPerUnit).toFixed(2);
+
+  const [sale] = await getDb()
+    .insert(sales)
+    .values({
+      diveCenterId: input.diveCenterId,
+      activityId: input.activityId,
+      sellerId: input.sellerId,
+      quantity: input.quantity,
+      unitPrice: input.unitPrice.toFixed(2),
+      currency: input.currency,
+      paymentMethod: input.paymentMethod,
+      grossAmount,
+      commissionAmount,
+      notes: input.notes || null
+    })
+    .returning();
+  return sale;
+}
+
+export async function listSalesForCenter(diveCenterId: string, status?: "pending" | "approved" | "rejected") {
+  return getDb().query.sales.findMany({
+    where: status
+      ? and(eq(sales.diveCenterId, diveCenterId), eq(sales.commissionStatus, status))
+      : eq(sales.diveCenterId, diveCenterId),
+    orderBy: desc(sales.saleDate),
+    with: { activity: true, seller: true }
+  });
+}
+
+export async function listSalesForSeller(sellerId: string) {
+  return getDb().query.sales.findMany({
+    where: eq(sales.sellerId, sellerId),
+    orderBy: desc(sales.saleDate),
+    with: { activity: true }
+  });
+}
+
+export async function validateSale(input: {
+  saleId: string;
+  diveCenterId: string;
+  validatedByUserId: string;
+  status: "approved" | "rejected";
+}) {
+  return getDb()
+    .update(sales)
+    .set({
+      commissionStatus: input.status,
+      validatedByUserId: input.validatedByUserId,
+      validatedAt: new Date(),
+      updatedAt: new Date()
+    })
+    .where(
+      and(eq(sales.id, input.saleId), eq(sales.diveCenterId, input.diveCenterId), eq(sales.commissionStatus, "pending"))
+    )
+    .returning();
 }

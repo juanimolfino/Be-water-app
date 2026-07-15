@@ -1,0 +1,163 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+
+const initialState = {
+  providerName: "",
+  isOwnActivity: "own" as "own" | "third_party",
+  tourName: "",
+  rackPrice: "",
+  netPrice: "",
+  commissionAmount: "",
+  currency: "USD" as "USD" | "CRC",
+  phone: "",
+  officeLocation: "",
+  meetingPoint: "",
+  distanceToActivity: "",
+  meetingTime: "",
+  duration: "",
+  tourLocation: "",
+  includes: "",
+  excludes: "",
+  whatToBring: "",
+  whatYouWillSee: ""
+};
+
+export function ActivityForm() {
+  const router = useRouter();
+  const [form, setForm] = useState(initialState);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  function update<K extends keyof typeof initialState>(key: K, value: (typeof initialState)[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+    const res = await fetch("/api/admin/activities", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, isOwnActivity: form.isOwnActivity === "own" })
+    });
+    setLoading(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(typeof body.error === "string" ? body.error : "No se pudo crear la actividad.");
+      return;
+    }
+    setForm(initialState);
+    setOpen(false);
+    router.refresh();
+  }
+
+  if (!open) {
+    return (
+      <Button onClick={() => setOpen(true)} className="mb-6">
+        + Cargar actividad
+      </Button>
+    );
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="mb-8 space-y-6 rounded-lg border bg-card p-6 shadow-sm">
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field label="Empresa / proveedor">
+          <Input required value={form.providerName} onChange={(e) => update("providerName", e.target.value)} placeholder="Be Water / Ti Marouba / ..." />
+        </Field>
+        <Field label="Tipo de actividad">
+          <select
+            className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            value={form.isOwnActivity}
+            onChange={(e) => update("isOwnActivity", e.target.value as "own" | "third_party")}
+          >
+            <option value="own">Propia del centro</option>
+            <option value="third_party">De un tercero (paga comisión)</option>
+          </select>
+        </Field>
+        <Field label="Nombre del tour">
+          <Input required value={form.tourName} onChange={(e) => update("tourName", e.target.value)} placeholder="Fundive, Sunset Tour, ATV Single..." />
+        </Field>
+        <Field label="Moneda">
+          <select
+            className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            value={form.currency}
+            onChange={(e) => update("currency", e.target.value as "USD" | "CRC")}
+          >
+            <option value="USD">USD</option>
+            <option value="CRC">Colones (CRC)</option>
+          </select>
+        </Field>
+        <Field label="Precio Rack">
+          <Input inputMode="decimal" value={form.rackPrice} onChange={(e) => update("rackPrice", e.target.value)} placeholder="130" />
+        </Field>
+        <Field label="Precio Neto">
+          <Input inputMode="decimal" value={form.netPrice} onChange={(e) => update("netPrice", e.target.value)} placeholder="110" />
+        </Field>
+        <Field label="Comisión por unidad">
+          <Input inputMode="decimal" value={form.commissionAmount} onChange={(e) => update("commissionAmount", e.target.value)} placeholder="5" />
+        </Field>
+        <Field label="Teléfono">
+          <Input value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="+506 0000 0000" />
+        </Field>
+        <Field label="Ubicación oficina central">
+          <Input value={form.officeLocation} onChange={(e) => update("officeLocation", e.target.value)} />
+        </Field>
+        <Field label="Punto de encuentro del cliente">
+          <Input value={form.meetingPoint} onChange={(e) => update("meetingPoint", e.target.value)} />
+        </Field>
+        <Field label="Distancia hasta la actividad">
+          <Input value={form.distanceToActivity} onChange={(e) => update("distanceToActivity", e.target.value)} placeholder="15 min en auto" />
+        </Field>
+        <Field label="Hora de encuentro">
+          <Input value={form.meetingTime} onChange={(e) => update("meetingTime", e.target.value)} placeholder="8:00am" />
+        </Field>
+        <Field label="Duración del tour">
+          <Input value={form.duration} onChange={(e) => update("duration", e.target.value)} placeholder="2hs" />
+        </Field>
+        <Field label="Ubicación del tour">
+          <Input value={form.tourLocation} onChange={(e) => update("tourLocation", e.target.value)} />
+        </Field>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field label="Qué incluye">
+          <Textarea value={form.includes} onChange={(e) => update("includes", e.target.value)} />
+        </Field>
+        <Field label="Qué no incluye">
+          <Textarea value={form.excludes} onChange={(e) => update("excludes", e.target.value)} />
+        </Field>
+        <Field label="Qué recomiendan llevar">
+          <Textarea value={form.whatToBring} onChange={(e) => update("whatToBring", e.target.value)} />
+        </Field>
+        <Field label="Qué vas a ver">
+          <Textarea value={form.whatYouWillSee} onChange={(e) => update("whatYouWillSee", e.target.value)} />
+        </Field>
+      </div>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <div className="flex gap-2">
+        <Button type="submit" disabled={loading}>
+          {loading ? "Guardando..." : "Guardar actividad"}
+        </Button>
+        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          Cancelar
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="mb-1 block text-sm font-medium">{label}</label>
+      {children}
+    </div>
+  );
+}

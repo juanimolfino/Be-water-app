@@ -13,14 +13,14 @@ export async function GET(request: NextRequest) {
   const code = requestUrl.searchParams.get("code");
   const error = requestUrl.searchParams.get("error_description") ?? requestUrl.searchParams.get("error");
   const loginUrl = new URL("/login", request.url);
-  const dashboardUrl = new URL("/dashboard", request.url);
+  const homeUrl = new URL("/home", request.url);
 
   if (error || !code) {
     loginUrl.searchParams.set("error", error ?? "Missing auth code");
     return NextResponse.redirect(loginUrl);
   }
 
-  let response = NextResponse.redirect(dashboardUrl);
+  let response = NextResponse.redirect(homeUrl);
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
