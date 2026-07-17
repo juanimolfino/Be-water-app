@@ -1,0 +1,1 @@
+ALTER TABLE "sales" ADD COLUMN "tour_date" date;

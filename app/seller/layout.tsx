@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ export default async function SellerLayout({ children }: { children: React.React
           <div>
             <p className="text-sm text-muted-foreground">{center?.name ?? "Tu centro"}</p>
             <p className="text-sm font-medium">{profile.fullName ?? profile.email}</p>
+            <nav className="mt-1 flex gap-4 text-sm font-medium"><Link href="/seller">Vender</Link><Link href="/seller/agenda">Agenda</Link></nav>
           </div>
           <form action="/logout" method="post">
             <Button variant="ghost" size="sm">

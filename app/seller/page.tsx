@@ -33,7 +33,7 @@ export default async function SellerHomePage() {
           <table className="w-full text-sm">
             <thead className="bg-muted text-left">
               <tr>
-                <th className="px-4 py-2">Fecha</th>
+                <th className="px-4 py-2">Fecha del tour</th>
                 <th className="px-4 py-2">Actividad</th>
                 <th className="px-4 py-2">Cant.</th>
                 <th className="px-4 py-2">Total</th>
@@ -44,7 +44,7 @@ export default async function SellerHomePage() {
             <tbody>
               {saleRows.map((sale) => (
                 <tr key={sale.id} className="border-t">
-                  <td className="px-4 py-2">{new Date(sale.saleDate).toLocaleDateString()}</td>
+                  <td className="px-4 py-2">{sale.tourDate ? new Date(`${sale.tourDate}T12:00:00`).toLocaleDateString() : "—"}</td>
                   <td className="px-4 py-2">{sale.activity.tourName}</td>
                   <td className="px-4 py-2">{sale.quantity}</td>
                   <td className="px-4 py-2">

@@ -40,6 +40,7 @@ export default async function AdminSalesPage() {
             <thead className="bg-muted text-left">
               <tr>
                 <th className="px-4 py-2">Fecha</th>
+                <th className="px-4 py-2">Tour</th>
                 <th className="px-4 py-2">Vendedor</th>
                 <th className="px-4 py-2">Cliente</th>
                 <th className="px-4 py-2">Actividad</th>
@@ -54,6 +55,7 @@ export default async function AdminSalesPage() {
               {pending.map((sale) => (
                 <tr key={sale.id} className="border-t">
                   <td className="px-4 py-2">{new Date(sale.saleDate).toLocaleDateString()}</td>
+                  <td className="px-4 py-2">{sale.tourDate ? new Date(`${sale.tourDate}T12:00:00`).toLocaleDateString() : "—"}</td>
                   <td className="px-4 py-2">{sale.seller.fullName ?? sale.seller.email}</td>
                   <td className="px-4 py-2">
                     <p>{sale.customerName ?? "—"}</p>
@@ -89,6 +91,7 @@ export default async function AdminSalesPage() {
             <thead className="bg-muted text-left">
               <tr>
                 <th className="px-4 py-2">Fecha</th>
+                <th className="px-4 py-2">Tour</th>
                 <th className="px-4 py-2">Vendedor</th>
                 <th className="px-4 py-2">Cliente</th>
                 <th className="px-4 py-2">Actividad</th>
@@ -100,6 +103,7 @@ export default async function AdminSalesPage() {
               {all.map((sale) => (
                 <tr key={sale.id} className="border-t">
                   <td className="px-4 py-2">{new Date(sale.saleDate).toLocaleDateString()}</td>
+                  <td className="px-4 py-2">{sale.tourDate ? new Date(`${sale.tourDate}T12:00:00`).toLocaleDateString() : "—"}</td>
                   <td className="px-4 py-2">{sale.seller.fullName ?? sale.seller.email}</td>
                   <td className="px-4 py-2">
                     <p>{sale.customerName ?? "—"}</p>

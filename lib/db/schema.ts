@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  date,
   integer,
   jsonb,
   numeric,
@@ -100,6 +101,7 @@ export const sales = pgTable("sales", {
   commissionAmount: numeric("commission_amount", { precision: 10, scale: 2 }).notNull(),
   commissionStatus: commissionStatusEnum("commission_status").default("pending").notNull(),
   saleDate: timestamp("sale_date", { withTimezone: true }).defaultNow().notNull(),
+  tourDate: date("tour_date"),
   customerName: text("customer_name"),
   customerPhone: text("customer_phone"),
   customerEmail: text("customer_email"),

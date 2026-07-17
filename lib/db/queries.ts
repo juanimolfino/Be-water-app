@@ -430,6 +430,7 @@ export async function createSale(input: {
   commissionPerUnit: number;
   commissionStatus?: CommissionStatus;
   validatedByUserId?: string;
+  tourDate: string;
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
@@ -453,6 +454,7 @@ export async function createSale(input: {
       commissionStatus: input.commissionStatus,
       validatedByUserId: input.validatedByUserId,
       validatedAt: input.validatedByUserId ? new Date() : null,
+      tourDate: input.tourDate,
       customerName: input.customerName,
       customerPhone: input.customerPhone,
       customerEmail: input.customerEmail || null,

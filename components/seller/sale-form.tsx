@@ -23,6 +23,7 @@ export function SaleForm({ activities, actor = "seller", collapsible = false }: 
   const [unitPrice, setUnitPrice] = useState(activities[0]?.rackPrice ?? "");
   const [currency, setCurrency] = useState<"USD" | "CRC">(activities[0]?.currency ?? "USD");
   const [paymentMethod, setPaymentMethod] = useState<(typeof paymentMethods)[number]["value"]>("cash");
+  const [tourDate, setTourDate] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -73,7 +74,7 @@ export function SaleForm({ activities, actor = "seller", collapsible = false }: 
     const res = await fetch(isAdminSale ? "/api/admin/sales" : "/api/seller/sales", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activityId, quantity, unitPrice, currency, paymentMethod, customerName, customerPhone, customerEmail, notes })
+      body: JSON.stringify({ activityId, quantity, unitPrice, currency, paymentMethod, tourDate, customerName, customerPhone, customerEmail, notes })
     });
     setLoading(false);
     if (!res.ok) {
@@ -83,6 +84,7 @@ export function SaleForm({ activities, actor = "seller", collapsible = false }: 
     }
     setSuccess(true);
     setQuantity(1);
+    setTourDate("");
     setCustomerName("");
     setCustomerPhone("");
     setCustomerEmail("");
@@ -145,6 +147,10 @@ export function SaleForm({ activities, actor = "seller", collapsible = false }: 
             value={quantity}
             onChange={(event) => setQuantity(Number(event.target.value))}
           />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Fecha del tour</label>
+          <Input required type="date" value={tourDate} onChange={(event) => setTourDate(event.target.value)} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Precio unitario</label>
