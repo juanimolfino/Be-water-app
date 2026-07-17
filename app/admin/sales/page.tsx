@@ -1,19 +1,13 @@
 import { SaleValidationActions } from "@/components/admin/sale-validation-row";
-import { Badge } from "@/components/ui/badge";
 import { SaleForm } from "@/components/seller/sale-form";
 import { CancelSaleButton } from "@/components/sales/cancel-sale-button";
 import { CommissionAmount } from "@/components/sales/commission-amount";
+import { CommissionStatusBadge } from "@/components/sales/commission-status-badge";
 import { ReservationDateCell } from "@/components/sales/reservation-date-cell";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import { listActivitiesForCenter, listSalesForCenter } from "@/lib/db/queries";
 
 export const metadata = { title: "Ventas" };
-
-const statusLabel: Record<string, string> = {
-  pending: "Pendiente",
-  approved: "Aprobada",
-  rejected: "Rechazada"
-};
 
 export default async function AdminSalesPage() {
   const profile = await getCurrentProfile();
@@ -101,8 +95,8 @@ export default async function AdminSalesPage() {
                 <th className="px-4 py-2">Vendedor</th>
                 <th className="px-4 py-2">Cliente</th>
                 <th className="px-4 py-2">Actividad</th>
-                <th className="px-4 py-2">Estado</th>
                 <th className="px-4 py-2">Fecha de venta</th>
+                <th className="px-4 py-2">Estado de comisión</th>
                 <th className="px-4 py-2">Comisión</th>
                 <th className="px-4 py-2"></th>
               </tr>
@@ -121,10 +115,10 @@ export default async function AdminSalesPage() {
                       <p className="text-muted-foreground">{sale.customerPhone ?? ""}</p>
                     </td>
                     <td className="px-4 py-2">{sale.activity.tourName}</td>
-                    <td className="px-4 py-2">
-                      <Badge>{statusLabel[sale.commissionStatus]}</Badge>
-                    </td>
                     <td className="px-4 py-2">{new Date(sale.saleDate).toLocaleDateString()}</td>
+                    <td className="px-4 py-2">
+                      <CommissionStatusBadge status={sale.commissionStatus} />
+                    </td>
                     <td className="px-4 py-2">
                       <CommissionAmount
                         amount={sale.commissionAmount}

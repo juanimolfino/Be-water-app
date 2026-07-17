@@ -42,3 +42,15 @@ export const commissionStatusClasses: Record<CommissionStatus, string> = {
   rejected: "text-destructive",
   pending: "text-amber-600"
 };
+
+export const commissionStatusLabel: Record<CommissionStatus, string> = {
+  approved: "Aprobada",
+  rejected: "Rechazada",
+  pending: "Pendiente"
+};
+
+export const commissionStatusBadgeClasses: Record<CommissionStatus, string> = {
+  approved: "border-emerald-600 bg-emerald-50 text-emerald-700",
+  rejected: "border-destructive bg-destructive/10 text-destructive",
+  pending: "border-amber-500 bg-amber-50 text-amber-700"
+};

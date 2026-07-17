@@ -257,13 +257,29 @@ three shared pieces instead of inlining status/color logic — reuse these for a
 - `components/sales/commission-amount.tsx`: renders the commission amount colored by
   `commissionStatus` (approved green / pending amber / rejected red); pass `cancelled` to render
   "—" instead for cancelled reservations, matching the report page's convention.
+- `components/sales/commission-status-badge.tsx`: a `Badge` colored the same way (green/amber/red)
+  with the Spanish label ("Aprobada"/"Pendiente"/"Rechazada"), backed by `commissionStatusLabel`/
+  `commissionStatusBadgeClasses` in `lib/sales/status.ts`. This is deliberately a **separate**
+  badge from the tour-date one above — mixing "is the tour done" with "is the commission approved"
+  in one badge reads as confusing, so every sales table shows both, and always labels this one
+  "Estado de comisión" (never just "Estado") to keep them visually and textually distinct. Always
+  place it immediately next to the `Comisión` amount column, not elsewhere in the row.
 - `components/sales/cancel-sale-button.tsx`: a self-contained button + confirm modal (reason
   required, ≥3 chars) that posts to `${endpoint}/[id]/cancel` — pass `endpoint="/api/admin/sales"`
   or `"/api/seller/sales"`. Only render it for `reservationStatus === "active"` rows.
+- `lib/reports/money.ts` (`formatMoneyTotals`): sums a list of `{ currency, amount }` rows per
+  currency and formats them (`"$12.50"`, or `"$10.00 · ₡500.00"` when mixed, `"—"` when empty).
+  Shared by `/admin/report` and the seller period footer below — don't re-sum currency totals
+  inline, add a new row shape and call this.
 
 Column order convention adopted across these tables: tour date/status first, financial columns in
-the middle, `commissionStatus` badge (when shown) and `Fecha de venta` (sale date) near the end,
-`Comisión` last before any row actions.
+the middle, `Fecha de venta` (sale date) then `Estado de comisión` immediately before `Comisión`
+(last data column), row actions after that.
+
+`/seller` "Mis ventas" also has a `<tfoot>` summary row: the current payment period range (via
+`getCurrentPaymentPeriod()`, §6.4) and, for `active` sales with `saleDate` inside that period, the
+approved vs. pending commission totals (`formatMoneyTotals`). This mirrors `/admin/report` at
+seller scale so a seller can see what they're about to get paid without needing report access.
 
 ## 7. Migrations (`drizzle/`)
 
