@@ -1,0 +1,1 @@
+ALTER TABLE "dive_centers" ADD COLUMN "commission_payment_days" jsonb DEFAULT '[1, 15]'::jsonb NOT NULL;

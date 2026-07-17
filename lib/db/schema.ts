@@ -34,6 +34,7 @@ export const diveCenters = pgTable("dive_centers", {
   phone: text("phone"),
   email: text("email"),
   officeLocation: text("office_location"),
+  commissionPaymentDays: jsonb("commission_payment_days").$type<number[]>().default(sql`'[1, 15]'::jsonb`).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 });

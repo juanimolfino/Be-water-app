@@ -380,6 +380,15 @@ export async function getActivityForCenter(activityId: string, diveCenterId: str
   });
 }
 
+export async function updateCommissionPaymentDays(diveCenterId: string, paymentDays: number[]) {
+  const [center] = await getDb()
+    .update(diveCenters)
+    .set({ commissionPaymentDays: paymentDays, updatedAt: new Date() })
+    .where(eq(diveCenters.id, diveCenterId))
+    .returning();
+  return center;
+}
+
 // --- Sellers ------------------------------------------------------------
 
 export async function listSellersForCenter(diveCenterId: string) {
