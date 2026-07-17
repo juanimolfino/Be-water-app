@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getTourStatus } from "@/lib/sales/status";
+import { getSaleAgendaStatus, getTourStatus } from "@/lib/sales/status";
 
 describe("getTourStatus", () => {
   const now = new Date(2026, 6, 17, 12);
@@ -20,5 +20,20 @@ describe("getTourStatus", () => {
 
   it("returns null when there is no tour date to judge", () => {
     expect(getTourStatus(null, "active", now)).toBeNull();
+  });
+});
+
+describe("getSaleAgendaStatus", () => {
+  it("is cancelled regardless of payment status", () => {
+    expect(getSaleAgendaStatus("cancelled", "paid")).toBe("cancelled");
+    expect(getSaleAgendaStatus("cancelled", "unpaid")).toBe("cancelled");
+  });
+
+  it("is paid when active and the customer already paid", () => {
+    expect(getSaleAgendaStatus("active", "paid")).toBe("paid");
+  });
+
+  it("is unpaid when active but the customer hasn't paid yet, regardless of commission approval", () => {
+    expect(getSaleAgendaStatus("active", "unpaid")).toBe("unpaid");
   });
 });

@@ -23,6 +23,7 @@ export function SaleForm({ activities, actor = "seller", collapsible = false }: 
   const [unitPrice, setUnitPrice] = useState(activities[0]?.rackPrice ?? "");
   const [currency, setCurrency] = useState<"USD" | "CRC">(activities[0]?.currency ?? "USD");
   const [paymentMethod, setPaymentMethod] = useState<(typeof paymentMethods)[number]["value"]>("cash");
+  const [paymentStatus, setPaymentStatus] = useState<"paid" | "unpaid">("paid");
   const [tourDate, setTourDate] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -74,7 +75,7 @@ export function SaleForm({ activities, actor = "seller", collapsible = false }: 
     const res = await fetch(isAdminSale ? "/api/admin/sales" : "/api/seller/sales", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activityId, quantity, unitPrice, currency, paymentMethod, tourDate, customerName, customerPhone, customerEmail, notes })
+      body: JSON.stringify({ activityId, quantity, unitPrice, currency, paymentMethod, paymentStatus, tourDate, customerName, customerPhone, customerEmail, notes })
     });
     setLoading(false);
     if (!res.ok) {
@@ -84,6 +85,7 @@ export function SaleForm({ activities, actor = "seller", collapsible = false }: 
     }
     setSuccess(true);
     setQuantity(1);
+    setPaymentStatus("paid");
     setTourDate("");
     setCustomerName("");
     setCustomerPhone("");
@@ -167,6 +169,14 @@ export function SaleForm({ activities, actor = "seller", collapsible = false }: 
           </div>
         </div>
       </div>
+      <label className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm">
+        <input
+          type="checkbox"
+          checked={paymentStatus === "unpaid"}
+          onChange={(event) => setPaymentStatus(event.target.checked ? "unpaid" : "paid")}
+        />
+        El cliente todavía no pagó (falta pagar)
+      </label>
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Nombre del cliente</label>

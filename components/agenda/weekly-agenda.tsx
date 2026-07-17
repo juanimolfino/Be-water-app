@@ -5,7 +5,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MarkPaidButton } from "@/components/sales/mark-paid-button";
 import { Textarea } from "@/components/ui/textarea";
+import { getSaleAgendaStatus, saleAgendaStatusClasses, saleAgendaStatusLabel } from "@/lib/sales/status";
 
 export type AgendaEntry = {
   id: string;
@@ -13,8 +15,8 @@ export type AgendaEntry = {
   quantity: number;
   customerName: string | null;
   customerPhone: string | null;
-  commissionStatus: "pending" | "approved" | "rejected";
   reservationStatus: "active" | "cancelled";
+  paymentStatus: "paid" | "unpaid";
   cancellationReason: string | null;
   activity: { tourName: string; providerName: string; isOwnActivity: boolean };
 };
@@ -96,9 +98,17 @@ export function WeeklyAgenda({ entries, basePath, week, cancelEndpoint }: { entr
                 <p className={today ? "grid h-8 w-8 place-items-center rounded-full bg-primary text-sm font-semibold text-primary-foreground" : "text-2xl font-semibold"}>{day.getDate()}</p>
               </div>
               <div className="space-y-2">
-                {ownEntries.map((entry) => <ReservationBlock key={entry.id} entry={entry} onCancel={() => { setCancelling(entry); setReason(""); setError(null); }} />)}
-                {ownEntries.length > 0 && thirdPartyEntries.length > 0 ? <div className="border-t pt-2" /> : null}
-                {thirdPartyEntries.map((entry) => <ReservationBlock key={entry.id} entry={entry} onCancel={() => { setCancelling(entry); setReason(""); setError(null); }} />)}
+                {ownEntries.length > 0 ? (
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Propias</p>
+                ) : null}
+                {ownEntries.map((entry) => <ReservationBlock key={entry.id} entry={entry} endpoint={cancelEndpoint} onCancel={() => { setCancelling(entry); setReason(""); setError(null); }} />)}
+                {ownEntries.length > 0 && thirdPartyEntries.length > 0 ? (
+                  <div className="border-t-2 border-dashed pt-2" />
+                ) : null}
+                {thirdPartyEntries.length > 0 ? (
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Terceros</p>
+                ) : null}
+                {thirdPartyEntries.map((entry) => <ReservationBlock key={entry.id} entry={entry} endpoint={cancelEndpoint} onCancel={() => { setCancelling(entry); setReason(""); setError(null); }} />)}
               </div>
             </section>
           );
@@ -123,23 +133,19 @@ export function WeeklyAgenda({ entries, basePath, week, cancelEndpoint }: { entr
   );
 }
 
-function ReservationBlock({ entry, onCancel }: { entry: AgendaEntry; onCancel: () => void }) {
+function ReservationBlock({ entry, endpoint, onCancel }: { entry: AgendaEntry; endpoint: string; onCancel: () => void }) {
   const cancelled = entry.reservationStatus === "cancelled";
-  const statusClass = cancelled
-    ? "border-destructive bg-destructive/10"
-    : entry.commissionStatus === "approved"
-      ? "border-emerald-600 bg-emerald-50"
-      : "border-amber-500 bg-amber-50";
-  const statusLabel = cancelled ? "Anulada" : entry.commissionStatus === "approved" ? "Confirmada" : "Comisión pendiente";
+  const agendaStatus = getSaleAgendaStatus(entry.reservationStatus, entry.paymentStatus);
   return (
-    <article className={`border-l-4 p-2 text-xs ${statusClass}`}>
+    <article className={`border-l-4 p-2 text-xs ${saleAgendaStatusClasses[agendaStatus]}`}>
       <div className="flex items-start justify-between gap-2">
         <p className="font-semibold">{entry.activity.tourName}</p>
         {!cancelled ? <Button type="button" variant="ghost" size="sm" onClick={onCancel} title="Anular reserva" aria-label="Anular reserva"><XCircle className="h-4 w-4" /></Button> : null}
       </div>
       <p>{entry.quantity} {entry.quantity === 1 ? "persona" : "personas"} · {entry.activity.isOwnActivity ? "Propia" : "Tercero"}</p>
       <p className="text-muted-foreground">{entry.customerName ?? "Cliente sin nombre"}{entry.customerPhone ? ` · ${entry.customerPhone}` : ""}</p>
-      <p className="mt-1 font-medium">{statusLabel}</p>
+      <p className="mt-1 font-medium">{saleAgendaStatusLabel[agendaStatus]}</p>
+      {agendaStatus === "unpaid" ? <MarkPaidButton saleId={entry.id} endpoint={endpoint} /> : null}
       {cancelled && entry.cancellationReason ? <p className="mt-1 text-muted-foreground">{entry.cancellationReason}</p> : null}
     </article>
   );

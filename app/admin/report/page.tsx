@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import { getDiveCenterById, listActivitiesForCenter, listSalesForCenter } from "@/lib/db/queries";
 import { formatMoneyTotals } from "@/lib/reports/money";
-import { getCurrentPaymentPeriod } from "@/lib/reports/payment-period";
+import { getCurrentPaymentPeriod, getPastPaymentPeriods } from "@/lib/reports/payment-period";
 import { tourStatusClasses } from "@/lib/sales/status";
 
 export const metadata = { title: "Período" };
@@ -33,6 +33,7 @@ export default async function AdminReportPage({
     searchParams
   ]);
   const period = getCurrentPaymentPeriod(center?.commissionPaymentDays ?? [1, 15]);
+  const pastPeriods = getPastPaymentPeriods(center?.commissionPaymentDays ?? [1, 15], 6);
   const from = params.from ?? dateInputValue(period.start);
   const to = params.to ?? dateInputValue(new Date());
   const fromDate = parseDate(from);
@@ -72,9 +73,37 @@ export default async function AdminReportPage({
   return (
     <>
       <h1 className="mb-1 text-3xl font-semibold">Período de ventas</h1>
-      <p className="mb-6 text-muted-foreground">
+      <p className="mb-4 text-muted-foreground">
         Período actual: {period.start.toLocaleDateString()} al {period.nextPaymentDate.toLocaleDateString()}.
       </p>
+
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium text-muted-foreground">Filtro rápido:</span>
+        <Link
+          className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${
+            !params.from && !params.to ? "border-primary text-primary" : ""
+          }`}
+          href="/admin/report"
+        >
+          Período actual
+        </Link>
+        {pastPeriods.map((quickPeriod, index) => {
+          const quickFrom = dateInputValue(quickPeriod.start);
+          const quickTo = dateInputValue(quickPeriod.end);
+          const isActive = params.from === quickFrom && params.to === quickTo;
+          return (
+            <Link
+              key={index}
+              className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${
+                isActive ? "border-primary text-primary" : ""
+              }`}
+              href={`/admin/report?from=${quickFrom}&to=${quickTo}`}
+            >
+              {quickPeriod.start.toLocaleDateString()} – {quickPeriod.end.toLocaleDateString()}
+            </Link>
+          );
+        })}
+      </div>
 
       <form className="mb-6 grid gap-4 rounded-lg border bg-card p-5 md:grid-cols-4">
         <label className="text-sm font-medium">Desde<input className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm" type="date" name="from" defaultValue={from} /></label>
@@ -93,7 +122,6 @@ export default async function AdminReportPage({
         </label>
         <div className="flex items-end gap-2 md:col-span-4">
           <button className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground" type="submit">Aplicar filtros</button>
-          <Link className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium" href="/admin/report">Período actual</Link>
         </div>
       </form>
 

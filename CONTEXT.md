@@ -104,11 +104,18 @@ superadmin (one, fixed by SUPERADMIN_EMAIL)
   `paymentMethod` (`cash`/`card`/`tour_operator`), `grossAmount` (`quantity × unitPrice`),
   `commissionAmount` (`quantity × commission-per-unit`), `commissionStatus`
   (`pending`/`approved`/`rejected` — the seller-commission validation workflow, §6.3),
-  `reservationStatus` (`active`/`cancelled` — the booking-cancellation workflow, §6.5, independent
-  of `commissionStatus`), `saleDate` (when logged), `tourDate` (when the tour happens — drives the
+  `reservationStatus` (`active`/`cancelled` — the booking-cancellation workflow, §6.5),
+  `paymentStatus` (`paid`/`unpaid`, default `paid` — whether the *customer* has paid; drives the
+  agenda color, §6.5.1 — a third, independent axis from `commissionStatus` and
+  `reservationStatus`), `saleDate` (when logged), `tourDate` (when the tour happens — drives the
   agenda), `customerName`/`customerPhone`/`customerEmail` (required except email), `notes`,
   cancellation fields (`cancellationReason`, `cancelledByUserId`, `cancelledAt`), validation
   fields (`validatedByUserId`, `validatedAt`).
+
+  Three independent status axes on a sale, easy to conflate — don't: `commissionStatus` (has the
+  admin approved paying the *seller*), `reservationStatus` (is the booking still on), and
+  `paymentStatus` (has the *customer* paid the center). A sale can be any combination, e.g.
+  `commissionStatus: pending`, `reservationStatus: active`, `paymentStatus: unpaid` all at once.
 
 Relations are declared with Drizzle `relations()` at the bottom of `schema.ts` and power the
 `with: { activity: true, seller: true }` query patterns in `lib/db/queries.ts`.
@@ -151,14 +158,15 @@ Ventas, Agenda, Período, Configuración)
   use the shared `components/sales/*` row components (§6.6) for the tour-date status, the colored
   commission amount, and a per-row cancel action.
 - `/admin/agenda` (`app/admin/agenda/page.tsx` → `components/agenda/weekly-agenda.tsx`): week grid
-  of tours by `tourDate`, split into own-activity vs. third-party blocks per day, with a cancel
-  action per reservation (`POST /api/admin/sales/[id]/cancel`). See §6.5. This is a separate,
+  of tours by `tourDate`. Each day always lists own-activity reservations first, then a dashed
+  divider, then third-party ones, each group labeled ("Propias"/"Terceros") — fixed ordering, not
+  configurable per center. Reservation block color/cancel behavior: see §6.5.1. This is a separate,
   calendar-shaped cancel UI from the one in `components/sales/cancel-sale-button.tsx` (§6.6) — same
   API, different component, not deduplicated (different layout needs: one modal shared across a
   week grid vs. one self-contained button per table row).
-- `/admin/report` (`app/admin/report/page.tsx`): the payment-period report — date/activity/
-  provider filters, revenue/commission/provider-payment summaries, daily breakdown, full sale
-  detail table. See §6.4.
+- `/admin/report` (`app/admin/report/page.tsx`): the payment-period report — a quick-filter row of
+  the last 6 closed payment periods plus a manual date/activity/provider filter form, revenue/
+  commission/provider-payment summaries, daily breakdown, full sale detail table. See §6.4.
 - `/admin/settings` (`app/admin/settings/page.tsx` + `components/admin/payment-days-form.tsx`):
   edit `dive_centers.commissionPaymentDays` (`PATCH /api/admin/settings/payment-days`), the days
   of the month that close a payment period (§6.4).
@@ -170,11 +178,13 @@ Ventas, Agenda, Período, Configuración)
 - `components/seller/sale-form.tsx`: shared with the admin's commission-free flow (see above).
   Selecting an activity auto-fills unit price and currency; changing payment method recalculates
   the price live (card adds 13%, §6.2) — the price input is **read-only**, sellers cannot type an
-  arbitrary price. Requires `tourDate`, `customerName`, `customerPhone` (email optional).
-  `POST /api/seller/sales`.
+  arbitrary price. Requires `tourDate`, `customerName`, `customerPhone` (email optional), and a
+  "El cliente todavía no pagó (falta pagar)" checkbox that sets `paymentStatus: "unpaid"` (defaults
+  unchecked → `"paid"`, §6.5.1). `POST /api/seller/sales`.
 - `/seller/agenda` (`app/seller/agenda/page.tsx`): same `WeeklyAgenda` component scoped to the
   seller's own sales, with its own cancel endpoint (`POST /api/seller/sales/[id]/cancel`, can only
-  cancel their own reservations).
+  cancel their own reservations) and its own mark-paid endpoint
+  (`POST /api/seller/sales/[id]/mark-paid`, same ownership restriction).
 
 ## 6. Business rules — read this before changing pricing/commission code
 
@@ -224,7 +234,15 @@ completely independent of `reservationStatus` (§6.5) — a sale can be `approve
 - `dive_centers.commissionPaymentDays` (e.g. `[1, 15]`) defines the days of the month commissions
   get paid out. `getCurrentPaymentPeriod(paymentDays, now)` in `lib/reports/payment-period.ts`
   finds the most recent payment day before `now` and the next one after, and returns
-  `{ start, nextPaymentDate }` — the report defaults its date filter to that window.
+  `{ start, nextPaymentDate }` — the report defaults its date filter to that window (from
+  `period.start` through today, since the ongoing period isn't closed yet).
+- `getPastPaymentPeriods(paymentDays, count, now)` (same file) instead returns the `count` most
+  recently **completed** periods, most recent first, each `{ start, end }` bounded by two
+  consecutive payment days (both dates inclusive) — e.g. for `[1, 15]` as of July 17: "1/7–15/7",
+  then "15/6–1/7", then "1/6–15/6". `/admin/report` renders these as a row of quick-filter links
+  (`?from=...&to=...`) above the manual filter form, plus a "Período actual" link back to the
+  default (no query params). The active one is highlighted by comparing `params.from`/`params.to`
+  to each period's formatted dates.
 - The report also aggregates **what the center owes each third-party provider**: for every
   active, non-own-activity sale in the filtered range, it sums `activity.netPrice × quantity`
   grouped by `(providerName, currency)`. This is the center's payable, independent of what it
@@ -232,6 +250,9 @@ completely independent of `reservationStatus` (§6.5) — a sale can be `approve
 - Cancelled reservations (`reservationStatus: "cancelled"`) are excluded from every financial
   total in the report (revenue, commissions, provider payments) but still appear in the sale
   detail table marked "Anulada" with the cancellation reason, so the history isn't lost.
+- The report's financial totals are **not** affected by `paymentStatus` (§6.5.1) yet — an unpaid
+  sale still counts as revenue in "Ingresos" etc. If a future request wants unpaid sales excluded
+  or broken out separately, that's a report-page change, not a schema change.
 
 ### 6.5 Reservations and cancellation
 
@@ -239,10 +260,37 @@ A `sales` row is really a reservation once it has a `tourDate`. Cancelling
 (`cancelSale()` in `lib/db/queries.ts`, via `/api/admin/sales/[id]/cancel` or
 `/api/seller/sales/[id]/cancel` — sellers can only cancel their own) sets `reservationStatus:
 "cancelled"` plus `cancellationReason`/`cancelledByUserId`/`cancelledAt`. It does **not** delete
-the row or touch `commissionStatus`. Effects: excluded from report financial totals (§6.4), shown
-struck-through/red in the weekly agenda (`components/agenda/weekly-agenda.tsx`), but still counts
-as sales history. A sale can only be cancelled once (`cancelSale` filters on
+the row or touch `commissionStatus`/`paymentStatus`. Effects: excluded from report financial
+totals (§6.4), shown red in the weekly agenda (`components/agenda/weekly-agenda.tsx`), but still
+counts as sales history. A sale can only be cancelled once (`cancelSale` filters on
 `reservationStatus = "active"`, so a second attempt returns 404 "ya fue anulada").
+
+#### 6.5.1 Payment status and the agenda color
+
+The weekly agenda color-codes each reservation block by whether the **customer has paid** — not
+by `commissionStatus` (that's about paying the *seller*, a separate concern, §6.3). Both sale
+forms (`components/seller/sale-form.tsx`, used by seller and admin flows alike) default new sales
+to `paymentStatus: "paid"`; checking "El cliente todavía no pagó (falta pagar)" sends
+`paymentStatus: "unpaid"` instead.
+
+`getSaleAgendaStatus(reservationStatus, paymentStatus)` in `lib/sales/status.ts` (unit-tested)
+derives the block's status, cancellation always winning:
+- `cancelled` → red, "Anulada" (unchanged from before).
+- `active` + `unpaid` → **also red**, but labeled **"Debe"** — deliberately the same red family as
+  cancelled since both need attention, distinguished by label text, not a third color.
+- `active` + `paid` → green, "Confirmada".
+
+`saleAgendaStatusClasses`/`saleAgendaStatusLabel` (same file) back
+`components/agenda/weekly-agenda.tsx`'s `ReservationBlock`. An unpaid-and-active block also shows
+a small **"Marcar pagado"** button (`components/sales/mark-paid-button.tsx`) that posts to
+`${cancelEndpoint}/[id]/mark-paid` (admin: `/api/admin/sales/[id]/mark-paid`; seller:
+`/api/seller/sales/[id]/mark-paid`, own reservations only) — `markSalePaid()` in
+`lib/db/queries.ts` flips `paymentStatus` to `paid`, guarded to only affect currently-`unpaid`,
+`active` rows. There is currently no reverse action (mark unpaid again); add one the same way if
+needed.
+
+`paymentStatus` is only surfaced in the agenda today, not in the "Mis ventas"/admin sales tables
+or the report — a natural next isolated improvement if the admin wants "Debe" visible there too.
 
 ### 6.6 Sales table status display (`lib/sales/status.ts`, `components/sales/*`)
 
@@ -302,6 +350,7 @@ Generate with `npm run db:generate` after editing `lib/db/schema.ts`, apply with
 | `0006_wide_pet_avengers` | `dive_centers.commissionPaymentDays`. |
 | `0007_amazing_the_call` | `sales.tourDate`. |
 | `0008_sloppy_aaron_stack` | `reservation_status` enum + cancellation fields on `sales`. |
+| `0009_overconfident_cyclops` | `payment_status` enum (`paid`/`unpaid`) + `sales.paymentStatus`, default `paid`. |
 
 After any schema change in production: run the migration against `DATABASE_URL`, then re-apply
 `lib/db/rls.sql` if a new table was added.
@@ -354,9 +403,10 @@ API routes:
 - `POST /api/admin/activities`, `PATCH /api/admin/activities/[id]`,
   `DELETE /api/admin/activities/[id]`
 - `POST /api/admin/sales` (commission-free admin sale), `POST /api/admin/sales/[id]/validate`,
-  `POST /api/admin/sales/[id]/cancel`
+  `POST /api/admin/sales/[id]/cancel`, `POST /api/admin/sales/[id]/mark-paid`
 - `PATCH /api/admin/settings/payment-days`
-- `POST /api/seller/sales`, `POST /api/seller/sales/[id]/cancel`
+- `POST /api/seller/sales`, `POST /api/seller/sales/[id]/cancel`,
+  `POST /api/seller/sales/[id]/mark-paid`
 - `GET /callback`, `POST /logout`
 - Legacy: `/api/jobs/*`, `/api/stripe/*`, `/api/mercadopago/*`, `/api/inngest`, `/api/health`.
 

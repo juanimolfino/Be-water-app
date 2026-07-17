@@ -28,6 +28,7 @@ export const currencyEnum = pgEnum("currency", ["CRC", "USD"]);
 export const paymentMethodEnum = pgEnum("payment_method", ["cash", "card", "tour_operator"]);
 export const commissionStatusEnum = pgEnum("commission_status", ["pending", "approved", "rejected"]);
 export const reservationStatusEnum = pgEnum("reservation_status", ["active", "cancelled"]);
+export const paymentStatusEnum = pgEnum("payment_status", ["paid", "unpaid"]);
 
 export const diveCenters = pgTable("dive_centers", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -102,6 +103,7 @@ export const sales = pgTable("sales", {
   commissionAmount: numeric("commission_amount", { precision: 10, scale: 2 }).notNull(),
   commissionStatus: commissionStatusEnum("commission_status").default("pending").notNull(),
   reservationStatus: reservationStatusEnum("reservation_status").default("active").notNull(),
+  paymentStatus: paymentStatusEnum("payment_status").default("paid").notNull(),
   saleDate: timestamp("sale_date", { withTimezone: true }).defaultNow().notNull(),
   tourDate: date("tour_date"),
   customerName: text("customer_name"),
@@ -199,3 +201,4 @@ export type Currency = typeof currencyEnum.enumValues[number];
 export type PaymentMethod = typeof paymentMethodEnum.enumValues[number];
 export type CommissionStatus = typeof commissionStatusEnum.enumValues[number];
 export type ReservationStatus = typeof reservationStatusEnum.enumValues[number];
+export type PaymentStatus = typeof paymentStatusEnum.enumValues[number];

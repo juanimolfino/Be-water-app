@@ -1,4 +1,4 @@
-import type { CommissionStatus, ReservationStatus } from "@/lib/db/schema";
+import type { CommissionStatus, PaymentStatus, ReservationStatus } from "@/lib/db/schema";
 
 export type TourStatus = "cancelled" | "done" | "upcoming";
 
@@ -53,4 +53,28 @@ export const commissionStatusBadgeClasses: Record<CommissionStatus, string> = {
   approved: "border-emerald-600 bg-emerald-50 text-emerald-700",
   rejected: "border-destructive bg-destructive/10 text-destructive",
   pending: "border-amber-500 bg-amber-50 text-amber-700"
+};
+
+export type SaleAgendaStatus = "cancelled" | "unpaid" | "paid";
+
+/**
+ * The agenda color-codes a reservation by whether the customer paid, not by
+ * whether the seller's commission was approved — those are independent
+ * concerns (see CONTEXT.md §6.6). Cancellation always wins.
+ */
+export function getSaleAgendaStatus(reservationStatus: ReservationStatus, paymentStatus: PaymentStatus): SaleAgendaStatus {
+  if (reservationStatus === "cancelled") return "cancelled";
+  return paymentStatus === "paid" ? "paid" : "unpaid";
+}
+
+export const saleAgendaStatusLabel: Record<SaleAgendaStatus, string> = {
+  cancelled: "Anulada",
+  unpaid: "Debe",
+  paid: "Confirmada"
+};
+
+export const saleAgendaStatusClasses: Record<SaleAgendaStatus, string> = {
+  cancelled: "border-destructive bg-destructive/10",
+  unpaid: "border-destructive bg-destructive/10",
+  paid: "border-emerald-600 bg-emerald-50"
 };

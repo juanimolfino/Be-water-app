@@ -13,6 +13,7 @@ import {
   type CommissionStatus,
   type JobType,
   type PaymentMethod,
+  type PaymentStatus,
   type Role
 } from "@/lib/db/schema";
 import { sendPurchaseConfirmationEmail, sendWelcomeEmail } from "@/lib/email/send";
@@ -430,6 +431,7 @@ export async function createSale(input: {
   commissionPerUnit: number;
   commissionStatus?: CommissionStatus;
   validatedByUserId?: string;
+  paymentStatus?: PaymentStatus;
   tourDate: string;
   customerName: string;
   customerPhone: string;
@@ -454,6 +456,7 @@ export async function createSale(input: {
       commissionStatus: input.commissionStatus,
       validatedByUserId: input.validatedByUserId,
       validatedAt: input.validatedByUserId ? new Date() : null,
+      paymentStatus: input.paymentStatus,
       tourDate: input.tourDate,
       customerName: input.customerName,
       customerPhone: input.customerPhone,
@@ -525,6 +528,22 @@ export async function cancelSale(input: {
       cancelledAt: new Date(),
       updatedAt: new Date()
     })
+    .where(and(...conditions))
+    .returning();
+}
+
+export async function markSalePaid(input: { saleId: string; diveCenterId: string; sellerId?: string }) {
+  const conditions = [
+    eq(sales.id, input.saleId),
+    eq(sales.diveCenterId, input.diveCenterId),
+    eq(sales.reservationStatus, "active"),
+    eq(sales.paymentStatus, "unpaid")
+  ];
+  if (input.sellerId) conditions.push(eq(sales.sellerId, input.sellerId));
+
+  return getDb()
+    .update(sales)
+    .set({ paymentStatus: "paid", updatedAt: new Date() })
     .where(and(...conditions))
     .returning();
 }
