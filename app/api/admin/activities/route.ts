@@ -39,6 +39,9 @@ export async function POST(request: Request) {
 
   const activity = await createActivity({
     ...parsed.data,
+    rackPrice: parsed.data.isOwnActivity ? undefined : parsed.data.rackPrice,
+    netPrice: parsed.data.isOwnActivity ? undefined : parsed.data.netPrice,
+    commissionAmount: parsed.data.isOwnActivity ? undefined : parsed.data.commissionAmount,
     diveCenterId: profile.diveCenterId,
     createdByUserId: profile.id
   });

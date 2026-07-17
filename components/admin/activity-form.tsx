@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +37,14 @@ export function ActivityForm() {
 
   function update<K extends keyof typeof initialState>(key: K, value: (typeof initialState)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function updateActivityType(value: "own" | "third_party") {
+    setForm((prev) => ({
+      ...prev,
+      isOwnActivity: value,
+      ...(value === "own" ? { rackPrice: "", netPrice: "", commissionAmount: "" } : {})
+    }));
   }
 
   async function onSubmit(event: React.FormEvent) {
@@ -76,7 +85,7 @@ export function ActivityForm() {
           <select
             className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
             value={form.isOwnActivity}
-            onChange={(e) => update("isOwnActivity", e.target.value as "own" | "third_party")}
+            onChange={(e) => updateActivityType(e.target.value as "own" | "third_party")}
           >
             <option value="own">Propia del centro</option>
             <option value="third_party">De un tercero (paga comisión)</option>
@@ -95,15 +104,28 @@ export function ActivityForm() {
             <option value="CRC">Colones (CRC)</option>
           </select>
         </Field>
-        <Field label="Precio Rack">
-          <Input inputMode="decimal" value={form.rackPrice} onChange={(e) => update("rackPrice", e.target.value)} placeholder="130" />
-        </Field>
-        <Field label="Precio Neto">
-          <Input inputMode="decimal" value={form.netPrice} onChange={(e) => update("netPrice", e.target.value)} placeholder="110" />
-        </Field>
-        <Field label="Comisión por unidad">
-          <Input inputMode="decimal" value={form.commissionAmount} onChange={(e) => update("commissionAmount", e.target.value)} placeholder="5" />
-        </Field>
+        {form.isOwnActivity === "third_party" ? (
+          <>
+            <Field
+              label="Precio Rack"
+              helpText="Precio público que paga el cliente por la actividad."
+            >
+              <Input inputMode="decimal" value={form.rackPrice} onChange={(e) => update("rackPrice", e.target.value)} placeholder="130" />
+            </Field>
+            <Field
+              label="Precio Neto"
+              helpText="Monto que se paga al proveedor externo por cada unidad vendida."
+            >
+              <Input inputMode="decimal" value={form.netPrice} onChange={(e) => update("netPrice", e.target.value)} placeholder="110" />
+            </Field>
+            <Field
+              label="Comisión por unidad"
+              helpText="Monto que recibe el vendedor por cada unidad de esta actividad vendida."
+            >
+              <Input inputMode="decimal" value={form.commissionAmount} onChange={(e) => update("commissionAmount", e.target.value)} placeholder="5" />
+            </Field>
+          </>
+        ) : null}
         <Field label="Teléfono">
           <Input value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="+506 0000 0000" />
         </Field>
@@ -153,11 +175,25 @@ export function ActivityForm() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, helpText, children }: { label: string; helpText?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium">{label}</label>
+      <label className="mb-1 flex items-center gap-1 text-sm font-medium">
+        {label}
+        {helpText ? <InfoTooltip text={helpText} /> : null}
+      </label>
       {children}
     </div>
+  );
+}
+
+function InfoTooltip({ text }: { text: string }) {
+  return (
+    <span className="group relative inline-flex" tabIndex={0} aria-label={text}>
+      <Info aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />
+      <span className="pointer-events-none absolute bottom-full left-0 z-10 mb-2 w-64 rounded-md bg-foreground px-2 py-1.5 text-xs font-normal text-background opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus:opacity-100">
+        {text}
+      </span>
+    </span>
   );
 }
