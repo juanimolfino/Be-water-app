@@ -56,6 +56,21 @@ export default async function AdminReportPage({
     daily.set(day, [...(daily.get(day) ?? []), sale]);
   }
   const approvedCommissions = filteredSales.filter((sale) => sale.commissionStatus === "approved");
+  const providerPayments = new Map<string, { provider: string; sales: number; currency: "USD" | "CRC"; amount: number }>();
+  for (const sale of filteredSales) {
+    if (sale.activity.isOwnActivity || !sale.activity.netPrice) continue;
+    const key = `${sale.activity.providerName}:${sale.activity.currency}`;
+    const current = providerPayments.get(key) ?? {
+      provider: sale.activity.providerName,
+      sales: 0,
+      currency: sale.activity.currency,
+      amount: 0
+    };
+    current.sales += sale.quantity;
+    current.amount += Number(sale.activity.netPrice) * sale.quantity;
+    providerPayments.set(key, current);
+  }
+  const providerPaymentRows = [...providerPayments.values()].sort((a, b) => a.provider.localeCompare(b.provider) || a.currency.localeCompare(b.currency));
 
   return (
     <>
@@ -85,11 +100,21 @@ export default async function AdminReportPage({
         </div>
       </form>
 
-      <section className="mb-8 grid gap-4 md:grid-cols-3">
+      <section className="mb-8 grid gap-4 md:grid-cols-4">
         <Summary label="Ingresos" value={moneyTotals(filteredSales.map((sale) => ({ currency: sale.currency, amount: sale.grossAmount })))} />
         <Summary label="Comisiones aprobadas" value={moneyTotals(approvedCommissions.map((sale) => ({ currency: sale.currency, amount: sale.commissionAmount })))} />
         <Summary label="Comisiones pendientes" value={moneyTotals(filteredSales.filter((sale) => sale.commissionStatus === "pending").map((sale) => ({ currency: sale.currency, amount: sale.commissionAmount })))} />
+        <Summary label="A pagar a proveedores" value={moneyTotals(providerPaymentRows.map((payment) => ({ currency: payment.currency, amount: payment.amount.toFixed(2) })))} />
       </section>
+
+      <h2 className="mb-3 text-xl font-semibold">Pagos a proveedores</h2>
+      {providerPaymentRows.length === 0 ? <p className="mb-8 text-muted-foreground">No hay pagos a proveedores para este período.</p> : (
+        <div className="mb-8 overflow-x-auto rounded-lg border">
+          <table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Proveedor</th><th className="px-4 py-2">Unidades vendidas</th><th className="px-4 py-2">A pagar</th></tr></thead>
+            <tbody>{providerPaymentRows.map((payment) => <tr key={`${payment.provider}:${payment.currency}`} className="border-t"><td className="px-4 py-2">{payment.provider}</td><td className="px-4 py-2">{payment.sales}</td><td className="px-4 py-2">{payment.currency === "USD" ? "$" : "₡"}{payment.amount.toFixed(2)}</td></tr>)}</tbody>
+          </table>
+        </div>
+      )}
 
       <h2 className="mb-3 text-xl font-semibold">Ventas por día</h2>
       {daily.size === 0 ? <p className="mb-8 text-muted-foreground">No hay ventas para los filtros seleccionados.</p> : (
