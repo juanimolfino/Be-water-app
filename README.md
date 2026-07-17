@@ -78,8 +78,8 @@ Mercado Pago Checkout Pro supports one-time credit pack purchases. See [docs/mer
 
 This app runs a role-based dive center manager on top of the boilerplate above.
 
-- **Superadmin**: fixed by the `SUPERADMIN_EMAIL` env var. Self-registers on first login (magic
-  link or Google) at `/login`, lands on `/superadmin`, and creates each dive center together with
+- **Superadmin**: fixed by the `SUPERADMIN_EMAIL` env var. Its first password login at `/login`
+  creates the profile, lands on `/superadmin`, and creates each dive center together with
   its admin user (email + password) from there.
 - **Admin**: one per dive center, created only by the superadmin. Logs in with email + password,
   lands on `/admin`. Loads the center's own and third-party activities (`/admin/activities`),
@@ -117,7 +117,7 @@ Deploy checklist specific to this feature set:
 
 - `/` marketing landing page with metadata, sitemap, robots, and JSON-LD.
 - `/pricing` public pricing page.
-- `/login` Supabase magic link/Google (superadmin) and email+password (admin/seller).
+- `/login` email+password for superadmin, admin, and seller users.
 - `/home` post-login redirect to the right role home.
 - `/superadmin` global view of all dive centers; create dive center + admin.
 - `/admin`, `/admin/activities`, `/admin/sellers`, `/admin/sales` dive center admin dashboard.

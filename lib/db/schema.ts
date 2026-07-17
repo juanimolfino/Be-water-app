@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid
 } from "drizzle-orm/pg-core";
 
@@ -37,17 +38,25 @@ export const diveCenters = pgTable("dive_centers", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 });
 
-export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  authUserId: uuid("auth_user_id").notNull().unique(),
-  email: text("email").notNull(),
-  fullName: text("full_name"),
-  role: roleEnum("role").default("admin").notNull(),
-  diveCenterId: uuid("dive_center_id").references(() => diveCenters.id, { onDelete: "set null" }),
-  stripeCustomerId: text("stripe_customer_id").unique(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
-});
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    authUserId: uuid("auth_user_id").notNull().unique(),
+    email: text("email").notNull(),
+    fullName: text("full_name"),
+    role: roleEnum("role").default("admin").notNull(),
+    diveCenterId: uuid("dive_center_id").references(() => diveCenters.id, { onDelete: "set null" }),
+    stripeCustomerId: text("stripe_customer_id").unique(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    uniqueIndex("users_one_superadmin_idx")
+      .on(table.role)
+      .where(sql`${table.role} = 'superadmin'`)
+  ]
+);
 
 export const activities = pgTable("activities", {
   id: uuid("id").defaultRandom().primaryKey(),

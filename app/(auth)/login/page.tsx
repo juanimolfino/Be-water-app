@@ -13,8 +13,7 @@ export default async function LoginPage({
     <main className="mx-auto grid min-h-screen max-w-md content-center px-6">
       <h1 className="text-3xl font-semibold">Iniciar sesión</h1>
       <p className="mb-6 mt-2 text-muted-foreground">
-        Admins y vendedores ingresan con el email y contraseña que les crearon. El superadmin
-        ingresa con magic link o Google.
+        Ingresá con el email y contraseña asignados a tu cuenta.
       </p>
       <LoginForm initialMessage={error} />
     </main>

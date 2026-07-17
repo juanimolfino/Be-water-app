@@ -9,7 +9,7 @@ This repo is a production-oriented AI SaaS boilerplate built to launch small AI 
 - **Tailwind CSS**: styling system. Config lives in `tailwind.config.ts`; global theme tokens and base CSS live in `app/globals.css`.
 - **shadcn-style local UI primitives**: lightweight local Button/Input/Textarea/Badge components live in `components/ui/`.
 - **Lucide React**: icons used in dashboard, pricing, login, and buttons.
-- **Supabase Auth**: magic link and Google OAuth auth provider. Server/browser clients live in `lib/supabase/server.ts`, `lib/supabase/browser.ts`, and auth cookie refresh logic lives in `lib/supabase/middleware.ts`. Route entry points are `app/(auth)/login/page.tsx`, `app/(auth)/callback/route.ts`, `app/(auth)/login/google/route.ts`, and `app/(auth)/logout/route.ts`.
+- **Supabase Auth**: email/password auth. Server/browser clients live in `lib/supabase/server.ts`, `lib/supabase/browser.ts`, and auth cookie refresh logic lives in `lib/supabase/middleware.ts`. Route entry points are `app/(auth)/login/page.tsx`, `app/(auth)/callback/route.ts`, and `app/(auth)/logout/route.ts`.
 - **Supabase Postgres**: primary database. Drizzle schema is in `lib/db/schema.ts`; migration output is in `drizzle/`.
 - **Supabase Storage**: stores generated images/audio in a private bucket. Upload and signed URL helpers live in `lib/ai/storage.ts`; bucket name comes from `SUPABASE_STORAGE_BUCKET` and currently defaults to `ai-results`.
 - **Drizzle ORM**: type-safe DB schema and queries. DB client entry point is `lib/db/index.ts`, business queries are in `lib/db/queries.ts`, and CLI config is `drizzle.config.ts`.
@@ -80,7 +80,6 @@ This repo is a production-oriented AI SaaS boilerplate built to launch small AI 
   - `app/(marketing)/pricing/page.tsx`: pricing page and checkout forms for credit packs/subscription.
   - `app/(auth)/login/page.tsx`: login page.
   - `app/(auth)/callback/route.ts`: Supabase auth callback that exchanges code for session and creates profile.
-  - `app/(auth)/login/google/route.ts`: starts Google OAuth from the server so PKCE verifier is stored in cookies.
   - `app/(auth)/logout/route.ts`: signs out and redirects to login.
   - `app/(dashboard)/dashboard/page.tsx`: protected dashboard.
   - `app/api/jobs/create/route.ts`: authenticated job creation endpoint.
@@ -95,7 +94,7 @@ This repo is a production-oriented AI SaaS boilerplate built to launch small AI 
 
 - `components/`: React UI.
   - `components/ui/`: local primitives (`button.tsx`, `input.tsx`, `textarea.tsx`, `badge.tsx`).
-  - `components/auth/login-form.tsx`: magic link and Google login controls.
+  - `components/auth/login-form.tsx`: email/password login controls.
   - `components/dashboard/job-create-form.tsx`: interactive AI job form.
   - `components/dashboard/job-history.tsx`: table of generated jobs with preview/view/download.
   - `components/dashboard/dashboard-auto-refresh.tsx`: client-side refresh loop for active jobs.
@@ -218,25 +217,16 @@ RLS:
 ## 6. Flujo de autenticación
 
 - Login UI: `app/(auth)/login/page.tsx` renders `components/auth/login-form.tsx`.
-- Magic link:
-  - Client calls `supabase.auth.signInWithOtp()` in `components/auth/login-form.tsx`.
-  - Supabase sends the email.
-  - The email returns to `app/(auth)/callback/route.ts`.
-  - Callback exchanges the `code` with `supabase.auth.exchangeCodeForSession(code)`.
-  - Callback creates app profile through `ensureUserProfile()` and redirects to `/dashboard`.
-
-- Google OAuth:
-  - Button sends the browser to `/login/google`.
-  - `app/(auth)/login/google/route.ts` starts OAuth server-side with Supabase so the PKCE verifier is stored in cookies.
-  - Supabase redirects through Google and back to `/callback`.
-  - The callback completes the session and profile setup.
+- Password login:
+  - Client calls `supabase.auth.signInWithPassword()` in `components/auth/login-form.tsx`.
+  - It redirects to `/home`, which loads or creates the app profile through `ensureUserProfile()`.
 
 - Logout:
   - Dashboard posts to `app/(auth)/logout/route.ts`.
   - It calls `supabase.auth.signOut()` and redirects to `/login` with HTTP 303.
 
 - Session/cookies:
-  - Supabase cookies are set with `path: "/"` in server, browser, callback, middleware, and Google login route.
+- Supabase cookies are set with `path: "/"` in server, browser, callback, and middleware.
   - `lib/supabase/middleware.ts` refreshes auth cookies through `createServerClient()`.
 
 - Protected routes:
@@ -349,7 +339,7 @@ RLS:
 
 Implemented and tested:
 - Next.js production deploy on Vercel.
-- Supabase Auth login with Google/magic-link callback infrastructure.
+- Supabase Auth login with email/password infrastructure.
 - Auth-protected dashboard.
 - Production health endpoint at `/api/health`, protected by `HEALTHCHECK_SECRET` in production.
 - Supabase Postgres tables and RLS SQL.
@@ -391,7 +381,6 @@ Known placeholders or pending pieces:
 - There are no automated tests yet.
 - There is no realtime job subscription; dashboard currently uses polling/refresh.
 - Error messages are functional but not polished product UX.
-- Google OAuth setup depends on external Google Cloud and Supabase provider configuration.
 
 ## 10. Próximos pasos sugeridos
 
