@@ -3,6 +3,7 @@
 import { ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { WhatsAppLink } from "@/components/activities/whatsapp-link";
 import type { Activity } from "@/lib/db/schema";
 
 function money(value: string | null, currency: string) {
@@ -63,7 +64,17 @@ export function ActivityCard({ activity, onEdit, onDelete }: { activity: Activit
             </dd>
           </div>
         ) : null}
-        <Row label="Teléfono" value={activity.phone} />
+        {activity.phone ? (
+          <div className="grid grid-cols-3 gap-2">
+            <dt className="text-muted-foreground">Teléfono</dt>
+            <dd className="col-span-2 flex items-center gap-2">
+              <span>{activity.phone}</span>
+              {!activity.isOwnActivity ? (
+                <WhatsAppLink phone={activity.phone} tourName={activity.tourName} />
+              ) : null}
+            </dd>
+          </div>
+        ) : null}
         <Row label="Oficina central" value={activity.officeLocation} />
         <Row label="Punto de encuentro" value={activity.meetingPoint} />
         <Row label="Distancia hasta la actividad" value={activity.distanceToActivity} />

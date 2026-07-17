@@ -132,7 +132,11 @@ Ventas, Agenda, Período, Configuración)
     `website` appear, `commissionAmount` is auto-computed and disabled — see §6.1).
   - `components/activities/activity-card.tsx`: read display used everywhere activities are shown
     (admin manager, seller catalog); accepts optional `onEdit`/`onDelete` to render admin-only
-    controls.
+    controls. For third-party activities with a `phone`, it also renders
+    `components/activities/whatsapp-link.tsx` next to the number — a `wa.me` deep link
+    (`lib/activities/whatsapp.ts` builds it, stripping non-digits and pre-filling an availability
+    question) so a seller can message that provider in one tap. Not shown for own activities
+    (nothing to "check availability with" — same center).
   - API: `POST /api/admin/activities` (create), `PATCH /api/admin/activities/[id]` (edit),
     `DELETE /api/admin/activities/[id]` (blocked with 409 if the activity already has sales —
     `deleteActivity()` in `lib/db/queries.ts` checks for existing sales first).
