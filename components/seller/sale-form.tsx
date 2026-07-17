@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { calculateThirdPartySellerCommission } from "@/lib/activities/pricing";
 import type { Activity } from "@/lib/db/schema";
 
 const paymentMethods = [
@@ -26,9 +27,13 @@ export function SaleForm({ activities }: { activities: Activity[] }) {
 
   const selectedActivity = activities.find((activity) => activity.id === activityId);
   const estimatedCommission = useMemo(() => {
+    if (!selectedActivity?.isOwnActivity) {
+      const perUnit = calculateThirdPartySellerCommission(unitPrice, selectedActivity?.netPrice ?? "");
+      return perUnit ? (Number(perUnit) * quantity).toFixed(2) : "0.00";
+    }
     const perUnit = Number(selectedActivity?.commissionAmount ?? 0);
     return (perUnit * quantity).toFixed(2);
-  }, [selectedActivity, quantity]);
+  }, [selectedActivity, quantity, unitPrice]);
 
   function onSelectActivity(id: string) {
     setActivityId(id);

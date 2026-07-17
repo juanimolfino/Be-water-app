@@ -6,6 +6,7 @@ import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { calculateThirdPartySellerCommission } from "@/lib/activities/pricing";
 import type { Activity } from "@/lib/db/schema";
 
 const initialState = {
@@ -69,7 +70,7 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
     setForm((prev) => ({
       ...prev,
       isOwnActivity: value,
-      ...(value === "own" ? { rackPrice: "", netPrice: "", commissionAmount: "" } : {})
+      ...(value === "own" ? { netPrice: "" } : {})
     }));
   }
 
@@ -80,7 +81,13 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
     const res = await fetch(activity ? `/api/admin/activities/${activity.id}` : "/api/admin/activities", {
       method: activity ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, isOwnActivity: form.isOwnActivity === "own" })
+      body: JSON.stringify({
+        ...form,
+        isOwnActivity: form.isOwnActivity === "own",
+        commissionAmount: form.isOwnActivity === "third_party"
+          ? calculateThirdPartySellerCommission(form.rackPrice, form.netPrice) ?? ""
+          : form.commissionAmount
+      })
     });
     setLoading(false);
     if (!res.ok) {
@@ -135,28 +142,35 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
             <option value="CRC">Colones (CRC)</option>
           </select>
         </Field>
+        <Field
+          label="Precio al cliente"
+          helpText="Precio final que paga el cliente por cada unidad de la actividad."
+        >
+          <Input required inputMode="decimal" value={form.rackPrice} onChange={(e) => update("rackPrice", e.target.value)} placeholder="130" />
+        </Field>
         {form.isOwnActivity === "third_party" ? (
           <>
             <Field
-              label="Precio Rack"
-              helpText="Precio público que paga el cliente por la actividad."
-            >
-              <Input inputMode="decimal" value={form.rackPrice} onChange={(e) => update("rackPrice", e.target.value)} placeholder="130" />
-            </Field>
-            <Field
-              label="Precio Neto"
+              label="Costo del proveedor"
               helpText="Monto que se paga al proveedor externo por cada unidad vendida."
             >
-              <Input inputMode="decimal" value={form.netPrice} onChange={(e) => update("netPrice", e.target.value)} placeholder="110" />
-            </Field>
-            <Field
-              label="Comisión por unidad"
-              helpText="Monto que recibe el vendedor por cada unidad de esta actividad vendida."
-            >
-              <Input inputMode="decimal" value={form.commissionAmount} onChange={(e) => update("commissionAmount", e.target.value)} placeholder="5" />
+              <Input required inputMode="decimal" value={form.netPrice} onChange={(e) => update("netPrice", e.target.value)} placeholder="110" />
             </Field>
           </>
         ) : null}
+        <Field
+          label="Comisión del vendedor"
+          helpText={form.isOwnActivity === "third_party" ? "Para terceros, recibe automáticamente el 50% de la ganancia por unidad." : "Monto que recibe el vendedor por cada unidad de esta actividad vendida."}
+        >
+          <Input
+            required
+            inputMode="decimal"
+            disabled={form.isOwnActivity === "third_party"}
+            value={form.isOwnActivity === "third_party" ? calculateThirdPartySellerCommission(form.rackPrice, form.netPrice) ?? "" : form.commissionAmount}
+            onChange={(e) => update("commissionAmount", e.target.value)}
+            placeholder="5"
+          />
+        </Field>
         <Field label="Teléfono">
           <Input value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="+506 0000 0000" />
         </Field>

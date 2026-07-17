@@ -35,22 +35,22 @@ export function ActivityCard({ activity, onEdit, onDelete }: { activity: Activit
         </div>
       </div>
 
-      {!activity.isOwnActivity ? (
-        <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+      <div className={`mt-4 grid gap-2 text-sm ${activity.isOwnActivity ? "grid-cols-2" : "grid-cols-3"}`}>
           <div>
-            <p className="text-muted-foreground">Rack</p>
+            <p className="text-muted-foreground">Cliente</p>
             <p className="font-medium">{money(activity.rackPrice, activity.currency)}</p>
           </div>
-          <div>
-            <p className="text-muted-foreground">Neto</p>
-            <p className="font-medium">{money(activity.netPrice, activity.currency)}</p>
-          </div>
+          {!activity.isOwnActivity ? (
+            <div>
+              <p className="text-muted-foreground">Proveedor</p>
+              <p className="font-medium">{money(activity.netPrice, activity.currency)}</p>
+            </div>
+          ) : null}
           <div>
             <p className="text-muted-foreground">Comisión</p>
             <p className="font-medium">{money(activity.commissionAmount, activity.currency)}</p>
           </div>
-        </div>
-      ) : null}
+      </div>
 
       <dl className="mt-4 space-y-2 text-sm">
         <Row label="Teléfono" value={activity.phone} />

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiProfile } from "@/lib/auth/api";
+import { calculateThirdPartySellerCommission } from "@/lib/activities/pricing";
 import { deleteActivity, updateActivity } from "@/lib/db/queries";
 
 const schema = z.object({
@@ -37,14 +38,30 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" }, { status: 400 });
   }
 
+  if (!parsed.data.rackPrice || !Number.isFinite(Number(parsed.data.rackPrice)) || Number(parsed.data.rackPrice) <= 0) {
+    return NextResponse.json({ error: "Ingresá un precio al cliente válido." }, { status: 400 });
+  }
+
   const { id } = await params;
+  const commissionAmount = parsed.data.isOwnActivity
+    ? parsed.data.commissionAmount
+    : calculateThirdPartySellerCommission(parsed.data.rackPrice ?? "", parsed.data.netPrice ?? "");
+  if (!commissionAmount && parsed.data.isOwnActivity) {
+    return NextResponse.json({ error: "Ingresá una comisión válida." }, { status: 400 });
+  }
+  if (!commissionAmount) {
+    return NextResponse.json({ error: "El precio al cliente debe ser mayor al costo del proveedor." }, { status: 400 });
+  }
+  if (!Number.isFinite(Number(commissionAmount)) || Number(commissionAmount) < 0) {
+    return NextResponse.json({ error: "Ingresá una comisión válida." }, { status: 400 });
+  }
   const activity = await updateActivity({
     ...parsed.data,
     id,
     diveCenterId: profile.diveCenterId,
-    rackPrice: parsed.data.isOwnActivity ? undefined : parsed.data.rackPrice,
+    rackPrice: parsed.data.rackPrice,
     netPrice: parsed.data.isOwnActivity ? undefined : parsed.data.netPrice,
-    commissionAmount: parsed.data.isOwnActivity ? undefined : parsed.data.commissionAmount
+    commissionAmount
   });
   if (!activity) return NextResponse.json({ error: "Actividad no encontrada" }, { status: 404 });
 
