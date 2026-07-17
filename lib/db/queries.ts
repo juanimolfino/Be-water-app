@@ -292,9 +292,7 @@ export async function listActivitiesForCenter(diveCenterId: string) {
   });
 }
 
-export async function createActivity(input: {
-  diveCenterId: string;
-  createdByUserId: string;
+type ActivityDetails = {
   providerName: string;
   isOwnActivity: boolean;
   tourName: string;
@@ -313,33 +311,64 @@ export async function createActivity(input: {
   excludes?: string;
   whatToBring?: string;
   whatYouWillSee?: string;
-}) {
+};
+
+function activityValues(input: ActivityDetails) {
+  return {
+    providerName: input.providerName,
+    isOwnActivity: input.isOwnActivity,
+    tourName: input.tourName,
+    rackPrice: input.rackPrice || null,
+    netPrice: input.netPrice || null,
+    commissionAmount: input.commissionAmount || null,
+    currency: input.currency,
+    phone: input.phone || null,
+    officeLocation: input.officeLocation || null,
+    meetingPoint: input.meetingPoint || null,
+    distanceToActivity: input.distanceToActivity || null,
+    meetingTime: input.meetingTime || null,
+    duration: input.duration || null,
+    tourLocation: input.tourLocation || null,
+    includes: input.includes || null,
+    excludes: input.excludes || null,
+    whatToBring: input.whatToBring || null,
+    whatYouWillSee: input.whatYouWillSee || null
+  };
+}
+
+export async function createActivity(input: ActivityDetails & { diveCenterId: string; createdByUserId: string }) {
   const [activity] = await getDb()
     .insert(activities)
     .values({
       diveCenterId: input.diveCenterId,
       createdByUserId: input.createdByUserId,
-      providerName: input.providerName,
-      isOwnActivity: input.isOwnActivity,
-      tourName: input.tourName,
-      rackPrice: input.rackPrice || null,
-      netPrice: input.netPrice || null,
-      commissionAmount: input.commissionAmount || null,
-      currency: input.currency,
-      phone: input.phone || null,
-      officeLocation: input.officeLocation || null,
-      meetingPoint: input.meetingPoint || null,
-      distanceToActivity: input.distanceToActivity || null,
-      meetingTime: input.meetingTime || null,
-      duration: input.duration || null,
-      tourLocation: input.tourLocation || null,
-      includes: input.includes || null,
-      excludes: input.excludes || null,
-      whatToBring: input.whatToBring || null,
-      whatYouWillSee: input.whatYouWillSee || null
+      ...activityValues(input)
     })
     .returning();
   return activity;
+}
+
+export async function updateActivity(input: ActivityDetails & { id: string; diveCenterId: string }) {
+  const [activity] = await getDb()
+    .update(activities)
+    .set({ ...activityValues(input), updatedAt: new Date() })
+    .where(and(eq(activities.id, input.id), eq(activities.diveCenterId, input.diveCenterId)))
+    .returning();
+  return activity;
+}
+
+export async function deleteActivity(activityId: string, diveCenterId: string) {
+  const existingSale = await getDb().query.sales.findFirst({
+    columns: { id: true },
+    where: and(eq(sales.activityId, activityId), eq(sales.diveCenterId, diveCenterId))
+  });
+  if (existingSale) return "has_sales" as const;
+
+  const [deleted] = await getDb()
+    .delete(activities)
+    .where(and(eq(activities.id, activityId), eq(activities.diveCenterId, diveCenterId)))
+    .returning({ id: activities.id });
+  return deleted ? "deleted" as const : "not_found" as const;
 }
 
 export async function getActivityForCenter(activityId: string, diveCenterId: string) {

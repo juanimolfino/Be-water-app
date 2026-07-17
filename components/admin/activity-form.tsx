@@ -6,6 +6,7 @@ import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import type { Activity } from "@/lib/db/schema";
 
 const initialState = {
   providerName: "",
@@ -28,12 +29,37 @@ const initialState = {
   whatYouWillSee: ""
 };
 
-export function ActivityForm() {
+function formStateFromActivity(activity?: Activity) {
+  if (!activity) return initialState;
+  return {
+    providerName: activity.providerName,
+    isOwnActivity: activity.isOwnActivity ? "own" as const : "third_party" as const,
+    tourName: activity.tourName,
+    rackPrice: activity.rackPrice ?? "",
+    netPrice: activity.netPrice ?? "",
+    commissionAmount: activity.commissionAmount ?? "",
+    currency: activity.currency,
+    phone: activity.phone ?? "",
+    officeLocation: activity.officeLocation ?? "",
+    meetingPoint: activity.meetingPoint ?? "",
+    distanceToActivity: activity.distanceToActivity ?? "",
+    meetingTime: activity.meetingTime ?? "",
+    duration: activity.duration ?? "",
+    tourLocation: activity.tourLocation ?? "",
+    includes: activity.includes ?? "",
+    excludes: activity.excludes ?? "",
+    whatToBring: activity.whatToBring ?? "",
+    whatYouWillSee: activity.whatYouWillSee ?? ""
+  };
+}
+
+export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activity; onSaved?: () => void; onCancel?: () => void }) {
   const router = useRouter();
-  const [form, setForm] = useState(initialState);
+  const [form, setForm] = useState(() => formStateFromActivity(activity));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const isEditing = Boolean(activity);
 
   function update<K extends keyof typeof initialState>(key: K, value: (typeof initialState)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -51,8 +77,8 @@ export function ActivityForm() {
     event.preventDefault();
     setLoading(true);
     setError(null);
-    const res = await fetch("/api/admin/activities", {
-      method: "POST",
+    const res = await fetch(activity ? `/api/admin/activities/${activity.id}` : "/api/admin/activities", {
+      method: activity ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...form, isOwnActivity: form.isOwnActivity === "own" })
     });
@@ -62,12 +88,16 @@ export function ActivityForm() {
       setError(typeof body.error === "string" ? body.error : "No se pudo crear la actividad.");
       return;
     }
-    setForm(initialState);
-    setOpen(false);
+    if (isEditing) {
+      onSaved?.();
+    } else {
+      setForm(initialState);
+      setOpen(false);
+    }
     router.refresh();
   }
 
-  if (!open) {
+  if (!open && !isEditing) {
     return (
       <Button onClick={() => setOpen(true)} className="mb-6">
         + Cargar actividad
@@ -77,6 +107,7 @@ export function ActivityForm() {
 
   return (
     <form onSubmit={onSubmit} className="mb-8 space-y-6 rounded-lg border bg-card p-6 shadow-sm">
+      {isEditing ? <h2 className="text-lg font-semibold">Editar actividad</h2> : null}
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Empresa / proveedor">
           <Input required value={form.providerName} onChange={(e) => update("providerName", e.target.value)} placeholder="Be Water / Ti Marouba / ..." />
@@ -165,9 +196,9 @@ export function ActivityForm() {
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className="flex gap-2">
         <Button type="submit" disabled={loading}>
-          {loading ? "Guardando..." : "Guardar actividad"}
+          {loading ? "Guardando..." : isEditing ? "Guardar cambios" : "Guardar actividad"}
         </Button>
-        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+        <Button type="button" variant="outline" onClick={() => (isEditing ? onCancel?.() : setOpen(false))}>
           Cancelar
         </Button>
       </div>

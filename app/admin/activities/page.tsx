@@ -1,5 +1,4 @@
-import { ActivityCard } from "@/components/activities/activity-card";
-import { ActivityForm } from "@/components/admin/activity-form";
+import { ActivityManager } from "@/components/admin/activity-manager";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import { listActivitiesForCenter } from "@/lib/db/queries";
 
@@ -17,16 +16,7 @@ export default async function AdminActivitiesPage() {
         Cargá las actividades propias de tu centro y las de terceros que te pagan comisión. Esta info es la que
         van a ver tus vendedores.
       </p>
-      <ActivityForm />
-      {activityRows.length === 0 ? (
-        <p className="text-muted-foreground">Todavía no cargaste ninguna actividad.</p>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {activityRows.map((activity) => (
-            <ActivityCard key={activity.id} activity={activity} />
-          ))}
-        </div>
-      )}
+      <ActivityManager activities={activityRows} />
     </>
   );
 }
