@@ -17,17 +17,25 @@ import {
 import { sendPurchaseConfirmationEmail, sendWelcomeEmail } from "@/lib/email/send";
 import type { User } from "@supabase/supabase-js";
 
-function roleForNewSignup(email: string): Role {
+function isSuperadminEmail(email: string) {
   const superadminEmail = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase();
-  if (superadminEmail && email.trim().toLowerCase() === superadminEmail) return "superadmin";
-  return "admin";
+  return Boolean(superadminEmail) && email.trim().toLowerCase() === superadminEmail;
 }
 
+/**
+ * Only the superadmin self-registers on first login. Admins and sellers are
+ * provisioned ahead of time (by the superadmin / an admin) with email+password,
+ * so any other email hitting this path with no existing row is denied.
+ */
 export async function ensureUserProfile(authUser: User) {
   const db = getDb();
   const email = authUser.email ?? "";
   const existing = await db.query.users.findFirst({ where: eq(users.authUserId, authUser.id) });
   if (existing) return existing;
+
+  if (!isSuperadminEmail(email)) {
+    throw new Error("Esta cuenta no está habilitada. Pedile a tu superadmin o admin que te cree un usuario.");
+  }
 
   const signupCredits = Number(process.env.FREE_SIGNUP_CREDITS ?? 5);
 
@@ -38,7 +46,7 @@ export async function ensureUserProfile(authUser: User) {
         authUserId: authUser.id,
         email,
         fullName: authUser.user_metadata?.full_name ?? authUser.user_metadata?.name ?? null,
-        role: roleForNewSignup(email)
+        role: "superadmin"
       })
       .onConflictDoNothing({ target: users.authUserId })
       .returning();
@@ -196,8 +204,10 @@ export async function addCredits(userId: string, amount: number, metadata: Recor
 
 // --- Dive centers ---------------------------------------------------------
 
-export async function createDiveCenter(input: {
-  ownerUserId: string;
+export async function createDiveCenterWithAdmin(input: {
+  adminAuthUserId: string;
+  adminEmail: string;
+  adminFullName?: string;
   name: string;
   phone?: string;
   email?: string;
@@ -205,10 +215,20 @@ export async function createDiveCenter(input: {
 }) {
   const db = getDb();
   return db.transaction(async (tx) => {
+    const [admin] = await tx
+      .insert(users)
+      .values({
+        authUserId: input.adminAuthUserId,
+        email: input.adminEmail,
+        fullName: input.adminFullName || null,
+        role: "admin"
+      })
+      .returning();
+
     const [center] = await tx
       .insert(diveCenters)
       .values({
-        ownerUserId: input.ownerUserId,
+        ownerUserId: admin.id,
         name: input.name,
         phone: input.phone || null,
         email: input.email || null,
@@ -216,9 +236,13 @@ export async function createDiveCenter(input: {
       })
       .returning();
 
-    await tx.update(users).set({ diveCenterId: center.id, updatedAt: new Date() }).where(eq(users.id, input.ownerUserId));
+    const [linkedAdmin] = await tx
+      .update(users)
+      .set({ diveCenterId: center.id, updatedAt: new Date() })
+      .where(eq(users.id, admin.id))
+      .returning();
 
-    return center;
+    return { admin: linkedAdmin, center };
   });
 }
 

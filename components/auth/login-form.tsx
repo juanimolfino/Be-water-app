@@ -9,7 +9,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export function LoginForm({ initialMessage }: { initialMessage?: string }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"magic" | "password">("magic");
+  const [mode, setMode] = useState<"magic" | "password">("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(initialMessage ?? null);
@@ -50,18 +50,18 @@ export function LoginForm({ initialMessage }: { initialMessage?: string }) {
       <div className="mb-4 flex gap-2 text-sm">
         <button
           type="button"
-          onClick={() => setMode("magic")}
-          className={mode === "magic" ? "font-semibold underline" : "text-muted-foreground"}
+          onClick={() => setMode("password")}
+          className={mode === "password" ? "font-semibold underline" : "text-muted-foreground"}
         >
-          Dueño de centro
+          Admin / Vendedor
         </button>
         <span className="text-muted-foreground">/</span>
         <button
           type="button"
-          onClick={() => setMode("password")}
-          className={mode === "password" ? "font-semibold underline" : "text-muted-foreground"}
+          onClick={() => setMode("magic")}
+          className={mode === "magic" ? "font-semibold underline" : "text-muted-foreground"}
         >
-          Vendedor
+          Superadmin
         </button>
       </div>
 

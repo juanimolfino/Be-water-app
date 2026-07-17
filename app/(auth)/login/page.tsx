@@ -13,8 +13,8 @@ export default async function LoginPage({
     <main className="mx-auto grid min-h-screen max-w-md content-center px-6">
       <h1 className="text-3xl font-semibold">Iniciar sesión</h1>
       <p className="mb-6 mt-2 text-muted-foreground">
-        Dueños de centro ingresan con magic link o Google. Vendedores ingresan con el email y
-        contraseña que les creó su centro.
+        Admins y vendedores ingresan con el email y contraseña que les crearon. El superadmin
+        ingresa con magic link o Google.
       </p>
       <LoginForm initialMessage={error} />
     </main>

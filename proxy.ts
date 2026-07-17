@@ -11,11 +11,11 @@ export const config = {
     "/login",
     "/api/jobs/:path*",
     "/home",
-    "/onboarding",
     "/admin/:path*",
     "/seller/:path*",
     "/superadmin/:path*",
     "/api/admin/:path*",
-    "/api/seller/:path*"
+    "/api/seller/:path*",
+    "/api/superadmin/:path*"
   ]
 };

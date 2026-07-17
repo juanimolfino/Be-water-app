@@ -1,5 +1,6 @@
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DiveCenterForm } from "@/components/superadmin/dive-center-form";
 import { requireRole } from "@/lib/auth/roles";
 import { listDiveCentersWithStats } from "@/lib/db/queries";
 
@@ -22,6 +23,8 @@ export default async function SuperadminPage() {
           </Button>
         </form>
       </div>
+
+      <DiveCenterForm />
 
       {centers.length === 0 ? (
         <p className="text-muted-foreground">Todavía no hay centros de buceo registrados.</p>

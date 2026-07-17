@@ -5,8 +5,10 @@ import type { Role, User } from "@/lib/db/schema";
 
 export function homePathForRole(role: Role, diveCenterId: string | null) {
   if (role === "superadmin") return "/superadmin";
-  if (role === "admin") return diveCenterId ? "/admin" : "/onboarding";
-  return "/seller";
+  // Admins and sellers are always created together with their dive center, so
+  // a missing diveCenterId here means a broken/incomplete account setup.
+  if (role === "admin") return diveCenterId ? "/admin" : "/login";
+  return diveCenterId ? "/seller" : "/login";
 }
 
 /**
@@ -25,7 +27,6 @@ export async function getCurrentProfile(): Promise<User> {
 
 /**
  * Loads the authenticated profile and redirects to that role's home if it does not match.
- * Admins without a dive center yet are sent to onboarding instead of /admin.
  */
 export async function requireRole(allowed: Role | Role[]): Promise<User> {
   const profile = await getCurrentProfile();

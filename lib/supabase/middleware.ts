@@ -39,7 +39,7 @@ export async function updateSession(request: NextRequest) {
     data: { user }
   } = await supabase.auth.getUser();
 
-  const protectedPrefixes = ["/dashboard", "/home", "/onboarding", "/admin", "/seller", "/superadmin"];
+  const protectedPrefixes = ["/dashboard", "/home", "/admin", "/seller", "/superadmin"];
   if (!user && protectedPrefixes.some((prefix) => request.nextUrl.pathname.startsWith(prefix))) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

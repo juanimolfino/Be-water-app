@@ -8,7 +8,7 @@ import { getDiveCenterById } from "@/lib/db/queries";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
   if (profile.role !== "admin") redirect(homePathForRole(profile.role, profile.diveCenterId));
-  if (!profile.diveCenterId) redirect("/onboarding");
+  if (!profile.diveCenterId) redirect("/login?error=Tu usuario no tiene un centro asignado. Contactá al superadmin.");
 
   const center = await getDiveCenterById(profile.diveCenterId);
 

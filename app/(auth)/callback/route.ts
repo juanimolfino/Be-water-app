@@ -56,9 +56,9 @@ export async function GET(request: NextRequest) {
   try {
     await ensureUserProfile(user);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown profile setup error";
+    const message = error instanceof Error ? error.message : "No se pudo iniciar sesión.";
     console.error("Auth callback profile setup failed", { message });
-    loginUrl.searchParams.set("error", `Profile setup failed: ${message}`);
+    loginUrl.searchParams.set("error", message);
     return NextResponse.redirect(loginUrl);
   }
 
