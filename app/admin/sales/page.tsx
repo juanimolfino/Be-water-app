@@ -1,6 +1,9 @@
 import { SaleValidationActions } from "@/components/admin/sale-validation-row";
 import { Badge } from "@/components/ui/badge";
 import { SaleForm } from "@/components/seller/sale-form";
+import { CancelSaleButton } from "@/components/sales/cancel-sale-button";
+import { CommissionAmount } from "@/components/sales/commission-amount";
+import { ReservationDateCell } from "@/components/sales/reservation-date-cell";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import { listActivitiesForCenter, listSalesForCenter } from "@/lib/db/queries";
 
@@ -39,23 +42,24 @@ export default async function AdminSalesPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted text-left">
               <tr>
-                <th className="px-4 py-2">Fecha</th>
                 <th className="px-4 py-2">Tour</th>
                 <th className="px-4 py-2">Vendedor</th>
                 <th className="px-4 py-2">Cliente</th>
                 <th className="px-4 py-2">Actividad</th>
                 <th className="px-4 py-2">Cant.</th>
                 <th className="px-4 py-2">Total</th>
-                <th className="px-4 py-2">Comisión</th>
                 <th className="px-4 py-2">Medio de pago</th>
+                <th className="px-4 py-2">Fecha de venta</th>
+                <th className="px-4 py-2">Comisión</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody>
               {pending.map((sale) => (
                 <tr key={sale.id} className="border-t">
-                  <td className="px-4 py-2">{new Date(sale.saleDate).toLocaleDateString()}</td>
-                  <td className="px-4 py-2">{sale.tourDate ? new Date(`${sale.tourDate}T12:00:00`).toLocaleDateString() : "—"}</td>
+                  <td className="px-4 py-2">
+                    <ReservationDateCell tourDate={sale.tourDate} reservationStatus={sale.reservationStatus} />
+                  </td>
                   <td className="px-4 py-2">{sale.seller.fullName ?? sale.seller.email}</td>
                   <td className="px-4 py-2">
                     <p>{sale.customerName ?? "—"}</p>
@@ -67,13 +71,16 @@ export default async function AdminSalesPage() {
                     {sale.currency === "USD" ? "$" : "₡"}
                     {sale.grossAmount}
                   </td>
-                  <td className="px-4 py-2">
-                    {sale.currency === "USD" ? "$" : "₡"}
-                    {sale.commissionAmount}
-                  </td>
                   <td className="px-4 py-2 capitalize">{sale.paymentMethod.replace("_", " ")}</td>
+                  <td className="px-4 py-2">{new Date(sale.saleDate).toLocaleDateString()}</td>
                   <td className="px-4 py-2">
-                    <SaleValidationActions saleId={sale.id} />
+                    <CommissionAmount amount={sale.commissionAmount} currency={sale.currency} status={sale.commissionStatus} />
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-1">
+                      <SaleValidationActions saleId={sale.id} />
+                      <CancelSaleButton saleId={sale.id} endpoint="/api/admin/sales" />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -90,35 +97,48 @@ export default async function AdminSalesPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted text-left">
               <tr>
-                <th className="px-4 py-2">Fecha</th>
                 <th className="px-4 py-2">Tour</th>
                 <th className="px-4 py-2">Vendedor</th>
                 <th className="px-4 py-2">Cliente</th>
                 <th className="px-4 py-2">Actividad</th>
-                <th className="px-4 py-2">Comisión</th>
                 <th className="px-4 py-2">Estado</th>
+                <th className="px-4 py-2">Fecha de venta</th>
+                <th className="px-4 py-2">Comisión</th>
+                <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody>
-              {all.map((sale) => (
-                <tr key={sale.id} className="border-t">
-                  <td className="px-4 py-2">{new Date(sale.saleDate).toLocaleDateString()}</td>
-                  <td className="px-4 py-2">{sale.tourDate ? new Date(`${sale.tourDate}T12:00:00`).toLocaleDateString() : "—"}</td>
-                  <td className="px-4 py-2">{sale.seller.fullName ?? sale.seller.email}</td>
-                  <td className="px-4 py-2">
-                    <p>{sale.customerName ?? "—"}</p>
-                    <p className="text-muted-foreground">{sale.customerPhone ?? ""}</p>
-                  </td>
-                  <td className="px-4 py-2">{sale.activity.tourName}</td>
-                  <td className="px-4 py-2">
-                    {sale.currency === "USD" ? "$" : "₡"}
-                    {sale.commissionAmount}
-                  </td>
-                  <td className="px-4 py-2">
-                    <Badge>{statusLabel[sale.commissionStatus]}</Badge>
-                  </td>
-                </tr>
-              ))}
+              {all.map((sale) => {
+                const cancelled = sale.reservationStatus === "cancelled";
+                return (
+                  <tr key={sale.id} className="border-t">
+                    <td className="px-4 py-2">
+                      <ReservationDateCell tourDate={sale.tourDate} reservationStatus={sale.reservationStatus} />
+                    </td>
+                    <td className="px-4 py-2">{sale.seller.fullName ?? sale.seller.email}</td>
+                    <td className="px-4 py-2">
+                      <p>{sale.customerName ?? "—"}</p>
+                      <p className="text-muted-foreground">{sale.customerPhone ?? ""}</p>
+                    </td>
+                    <td className="px-4 py-2">{sale.activity.tourName}</td>
+                    <td className="px-4 py-2">
+                      <Badge>{statusLabel[sale.commissionStatus]}</Badge>
+                    </td>
+                    <td className="px-4 py-2">{new Date(sale.saleDate).toLocaleDateString()}</td>
+                    <td className="px-4 py-2">
+                      <CommissionAmount
+                        amount={sale.commissionAmount}
+                        currency={sale.currency}
+                        status={sale.commissionStatus}
+                        cancelled={cancelled}
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      {!cancelled ? <CancelSaleButton saleId={sale.id} endpoint="/api/admin/sales" /> : null}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

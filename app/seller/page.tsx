@@ -1,6 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { ActivityCatalog } from "@/components/seller/activity-catalog";
 import { SaleForm } from "@/components/seller/sale-form";
+import { CancelSaleButton } from "@/components/sales/cancel-sale-button";
+import { CommissionAmount } from "@/components/sales/commission-amount";
+import { ReservationDateCell } from "@/components/sales/reservation-date-cell";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import { listActivitiesForCenter, listSalesForSeller } from "@/lib/db/queries";
 
@@ -37,29 +40,43 @@ export default async function SellerHomePage() {
                 <th className="px-4 py-2">Actividad</th>
                 <th className="px-4 py-2">Cant.</th>
                 <th className="px-4 py-2">Total</th>
-                <th className="px-4 py-2">Comisión</th>
                 <th className="px-4 py-2">Estado</th>
+                <th className="px-4 py-2">Fecha de venta</th>
+                <th className="px-4 py-2">Comisión</th>
+                <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody>
-              {saleRows.map((sale) => (
-                <tr key={sale.id} className="border-t">
-                  <td className="px-4 py-2">{sale.tourDate ? new Date(`${sale.tourDate}T12:00:00`).toLocaleDateString() : "—"}</td>
-                  <td className="px-4 py-2">{sale.activity.tourName}</td>
-                  <td className="px-4 py-2">{sale.quantity}</td>
-                  <td className="px-4 py-2">
-                    {sale.currency === "USD" ? "$" : "₡"}
-                    {sale.grossAmount}
-                  </td>
-                  <td className="px-4 py-2">
-                    {sale.currency === "USD" ? "$" : "₡"}
-                    {sale.commissionAmount}
-                  </td>
-                  <td className="px-4 py-2">
-                    <Badge>{statusLabel[sale.commissionStatus]}</Badge>
-                  </td>
-                </tr>
-              ))}
+              {saleRows.map((sale) => {
+                const cancelled = sale.reservationStatus === "cancelled";
+                return (
+                  <tr key={sale.id} className="border-t">
+                    <td className="px-4 py-2">
+                      <ReservationDateCell tourDate={sale.tourDate} reservationStatus={sale.reservationStatus} />
+                    </td>
+                    <td className="px-4 py-2">{sale.activity.tourName}</td>
+                    <td className="px-4 py-2">{sale.quantity}</td>
+                    <td className="px-4 py-2">
+                      {cancelled ? "—" : `${sale.currency === "USD" ? "$" : "₡"}${sale.grossAmount}`}
+                    </td>
+                    <td className="px-4 py-2">
+                      <Badge>{statusLabel[sale.commissionStatus]}</Badge>
+                    </td>
+                    <td className="px-4 py-2">{new Date(sale.saleDate).toLocaleDateString()}</td>
+                    <td className="px-4 py-2">
+                      <CommissionAmount
+                        amount={sale.commissionAmount}
+                        currency={sale.currency}
+                        status={sale.commissionStatus}
+                        cancelled={cancelled}
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      {!cancelled ? <CancelSaleButton saleId={sale.id} endpoint="/api/seller/sales" /> : null}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

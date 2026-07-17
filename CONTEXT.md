@@ -143,10 +143,15 @@ Ventas, Agenda, Período, Configuración)
   `components/admin/sale-validation-row.tsx` (approve/reject buttons →
   `POST /api/admin/sales/[id]/validate`), full history table, and
   `components/seller/sale-form.tsx` reused with `actor="admin" collapsible` — lets the admin log a
-  **commission-free** sale directly (no seller involved; see §6.1 "admin sale" case).
+  **commission-free** sale directly (no seller involved; see §6.1 "admin sale" case). Both tables
+  use the shared `components/sales/*` row components (§6.6) for the tour-date status, the colored
+  commission amount, and a per-row cancel action.
 - `/admin/agenda` (`app/admin/agenda/page.tsx` → `components/agenda/weekly-agenda.tsx`): week grid
   of tours by `tourDate`, split into own-activity vs. third-party blocks per day, with a cancel
-  action per reservation (`POST /api/admin/sales/[id]/cancel`). See §6.5.
+  action per reservation (`POST /api/admin/sales/[id]/cancel`). See §6.5. This is a separate,
+  calendar-shaped cancel UI from the one in `components/sales/cancel-sale-button.tsx` (§6.6) — same
+  API, different component, not deduplicated (different layout needs: one modal shared across a
+  week grid vs. one self-contained button per table row).
 - `/admin/report` (`app/admin/report/page.tsx`): the payment-period report — date/activity/
   provider filters, revenue/commission/provider-payment summaries, daily breakdown, full sale
   detail table. See §6.4.
@@ -155,9 +160,9 @@ Ventas, Agenda, Período, Configuración)
   of the month that close a payment period (§6.4).
 
 ### Seller (`/seller`, layout in `app/seller/layout.tsx` — nav: Vender, Agenda)
-- `/seller` (`app/seller/page.tsx`): sale form + "Mis ventas" history +
-  `components/seller/activity-catalog.tsx` (read-only catalog with a live text search over
-  provider/tour/location).
+- `/seller` (`app/seller/page.tsx`): sale form + "Mis ventas" history (tour-date status, colored
+  commission, cancel action — §6.6) + `components/seller/activity-catalog.tsx` (read-only catalog
+  with a live text search over provider/tour/location).
 - `components/seller/sale-form.tsx`: shared with the admin's commission-free flow (see above).
   Selecting an activity auto-fills unit price and currency; changing payment method recalculates
   the price live (card adds 13%, §6.2) — the price input is **read-only**, sellers cannot type an
@@ -234,6 +239,31 @@ the row or touch `commissionStatus`. Effects: excluded from report financial tot
 struck-through/red in the weekly agenda (`components/agenda/weekly-agenda.tsx`), but still counts
 as sales history. A sale can only be cancelled once (`cancelSale` filters on
 `reservationStatus = "active"`, so a second attempt returns 404 "ya fue anulada").
+
+### 6.6 Sales table status display (`lib/sales/status.ts`, `components/sales/*`)
+
+Any table that lists `sales` rows (seller "Mis ventas", admin "Ventas" pending + historial) uses
+three shared pieces instead of inlining status/color logic — reuse these for any new sales table:
+
+- `lib/sales/status.ts`: pure helpers, unit-tested in `lib/sales/status.test.ts`.
+  `getTourStatus(tourDate, reservationStatus, now?)` derives a `TourStatus` —
+  `"cancelled"` (reservation was cancelled, regardless of date), `"done"` (tour date is strictly
+  before today), or `"upcoming"` (today or later) — plus `tourStatusLabel`/`tourStatusClasses` and
+  `commissionStatusClasses` color maps (red/green/amber, matching the palette already used in
+  `components/agenda/weekly-agenda.tsx`).
+- `components/sales/reservation-date-cell.tsx`: renders the tour date plus a colored
+  `TourStatus` badge ("Pendiente" amber, "Realizada" green, "Cancelada" red). Renders a bare "—"
+  when `tourDate` is null (legacy sales from before that column existed).
+- `components/sales/commission-amount.tsx`: renders the commission amount colored by
+  `commissionStatus` (approved green / pending amber / rejected red); pass `cancelled` to render
+  "—" instead for cancelled reservations, matching the report page's convention.
+- `components/sales/cancel-sale-button.tsx`: a self-contained button + confirm modal (reason
+  required, ≥3 chars) that posts to `${endpoint}/[id]/cancel` — pass `endpoint="/api/admin/sales"`
+  or `"/api/seller/sales"`. Only render it for `reservationStatus === "active"` rows.
+
+Column order convention adopted across these tables: tour date/status first, financial columns in
+the middle, `commissionStatus` badge (when shown) and `Fecha de venta` (sale date) near the end,
+`Comisión` last before any row actions.
 
 ## 7. Migrations (`drizzle/`)
 
