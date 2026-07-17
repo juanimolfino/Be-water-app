@@ -12,6 +12,7 @@ const schema = z.object({
   netPrice: z.string().trim().optional(),
   commissionAmount: z.string().trim().optional(),
   currency: z.enum(["CRC", "USD"]),
+  website: z.string().trim().url().optional().or(z.literal("")),
   phone: z.string().trim().optional(),
   officeLocation: z.string().trim().optional(),
   meetingPoint: z.string().trim().optional(),
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
     rackPrice: parsed.data.rackPrice,
     netPrice: parsed.data.isOwnActivity ? undefined : parsed.data.netPrice,
     commissionAmount,
+    website: parsed.data.isOwnActivity ? undefined : parsed.data.website,
     diveCenterId: profile.diveCenterId,
     createdByUserId: profile.id
   });

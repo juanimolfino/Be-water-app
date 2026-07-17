@@ -17,6 +17,7 @@ const initialState = {
   netPrice: "",
   commissionAmount: "",
   currency: "USD" as "USD" | "CRC",
+  website: "",
   phone: "",
   officeLocation: "",
   meetingPoint: "",
@@ -40,6 +41,7 @@ function formStateFromActivity(activity?: Activity) {
     netPrice: activity.netPrice ?? "",
     commissionAmount: activity.commissionAmount ?? "",
     currency: activity.currency,
+    website: activity.website ?? "",
     phone: activity.phone ?? "",
     officeLocation: activity.officeLocation ?? "",
     meetingPoint: activity.meetingPoint ?? "",
@@ -70,7 +72,7 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
     setForm((prev) => ({
       ...prev,
       isOwnActivity: value,
-      ...(value === "own" ? { netPrice: "" } : {})
+      ...(value === "own" ? { netPrice: "", website: "" } : {})
     }));
   }
 
@@ -155,6 +157,12 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
               helpText="Monto que se paga al proveedor externo por cada unidad vendida."
             >
               <Input required inputMode="decimal" value={form.netPrice} onChange={(e) => update("netPrice", e.target.value)} placeholder="110" />
+            </Field>
+            <Field
+              label="Sitio web del proveedor"
+              helpText="Enlace que el vendedor puede abrir para consultar o mostrar la actividad del tercero."
+            >
+              <Input type="url" value={form.website} onChange={(e) => update("website", e.target.value)} placeholder="https://ejemplo.com" />
             </Field>
           </>
         ) : null}

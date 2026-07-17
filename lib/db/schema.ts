@@ -68,6 +68,7 @@ export const activities = pgTable("activities", {
   netPrice: numeric("net_price", { precision: 10, scale: 2 }),
   commissionAmount: numeric("commission_amount", { precision: 10, scale: 2 }),
   currency: currencyEnum("currency").default("USD").notNull(),
+  website: text("website"),
   phone: text("phone"),
   officeLocation: text("office_location"),
   meetingPoint: text("meeting_point"),

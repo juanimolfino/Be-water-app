@@ -300,6 +300,7 @@ type ActivityDetails = {
   netPrice?: string;
   commissionAmount?: string;
   currency: Currency;
+  website?: string;
   phone?: string;
   officeLocation?: string;
   meetingPoint?: string;
@@ -322,6 +323,7 @@ function activityValues(input: ActivityDetails) {
     netPrice: input.netPrice || null,
     commissionAmount: input.commissionAmount || null,
     currency: input.currency,
+    website: input.website || null,
     phone: input.phone || null,
     officeLocation: input.officeLocation || null,
     meetingPoint: input.meetingPoint || null,

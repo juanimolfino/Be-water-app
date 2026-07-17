@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Activity } from "@/lib/db/schema";
@@ -53,6 +53,16 @@ export function ActivityCard({ activity, onEdit, onDelete }: { activity: Activit
       </div>
 
       <dl className="mt-4 space-y-2 text-sm">
+        {activity.website ? (
+          <div className="grid grid-cols-3 gap-2">
+            <dt className="text-muted-foreground">Sitio web</dt>
+            <dd className="col-span-2">
+              <a className="inline-flex items-center gap-1 text-primary underline" href={activity.website} target="_blank" rel="noreferrer">
+                Abrir sitio del proveedor <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
+              </a>
+            </dd>
+          </div>
+        ) : null}
         <Row label="Teléfono" value={activity.phone} />
         <Row label="Oficina central" value={activity.officeLocation} />
         <Row label="Punto de encuentro" value={activity.meetingPoint} />
