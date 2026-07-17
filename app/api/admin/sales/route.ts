@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiProfile } from "@/lib/auth/api";
+import { calculateSaleUnitPrice } from "@/lib/activities/pricing";
 import { createSale, getActivityForCenter } from "@/lib/db/queries";
 
 const schema = z.object({
@@ -28,7 +29,9 @@ export async function POST(request: Request) {
 
   const activity = await getActivityForCenter(parsed.data.activityId, profile.diveCenterId);
   if (!activity) return NextResponse.json({ error: "La actividad no existe en tu centro" }, { status: 404 });
-  if (!activity.isOwnActivity && parsed.data.unitPrice <= Number(activity.netPrice ?? 0)) {
+  const unitPrice = calculateSaleUnitPrice(activity.rackPrice, parsed.data.paymentMethod);
+  if (!unitPrice) return NextResponse.json({ error: "La actividad no tiene un precio válido." }, { status: 400 });
+  if (!activity.isOwnActivity && Number(unitPrice) <= Number(activity.netPrice ?? 0)) {
     return NextResponse.json({ error: "El precio cobrado debe ser mayor al costo del proveedor." }, { status: 400 });
   }
 
@@ -37,7 +40,7 @@ export async function POST(request: Request) {
     activityId: activity.id,
     sellerId: profile.id,
     quantity: parsed.data.quantity,
-    unitPrice: parsed.data.unitPrice,
+    unitPrice: Number(unitPrice),
     currency: parsed.data.currency,
     paymentMethod: parsed.data.paymentMethod,
     commissionPerUnit: 0,

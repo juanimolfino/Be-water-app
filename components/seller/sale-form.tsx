@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { calculateThirdPartySellerCommission } from "@/lib/activities/pricing";
+import { calculateSaleUnitPrice, calculateThirdPartySellerCommission } from "@/lib/activities/pricing";
 import type { Activity } from "@/lib/db/schema";
 
 const paymentMethods = [
@@ -13,9 +14,10 @@ const paymentMethods = [
   { value: "tour_operator", label: "Tour operador" }
 ] as const;
 
-export function SaleForm({ activities, actor = "seller" }: { activities: Activity[]; actor?: "seller" | "admin" }) {
+export function SaleForm({ activities, actor = "seller", collapsible = false }: { activities: Activity[]; actor?: "seller" | "admin"; collapsible?: boolean }) {
   const router = useRouter();
   const isAdminSale = actor === "admin";
+  const [open, setOpen] = useState(!collapsible);
   const [activityId, setActivityId] = useState(activities[0]?.id ?? "");
   const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState(activities[0]?.rackPrice ?? "");
@@ -53,9 +55,14 @@ export function SaleForm({ activities, actor = "seller" }: { activities: Activit
     setActivityId(id);
     const activity = activities.find((item) => item.id === id);
     if (activity) {
-      setUnitPrice(activity.rackPrice ?? "");
+      setUnitPrice(calculateSaleUnitPrice(activity.rackPrice, paymentMethod) ?? "");
       setCurrency(activity.currency);
     }
+  }
+
+  function onPaymentMethodChange(method: (typeof paymentMethods)[number]["value"]) {
+    setPaymentMethod(method);
+    setUnitPrice(calculateSaleUnitPrice(selectedActivity?.rackPrice ?? null, method) ?? "");
   }
 
   async function onSubmit(event: React.FormEvent) {
@@ -80,11 +87,21 @@ export function SaleForm({ activities, actor = "seller" }: { activities: Activit
     setCustomerPhone("");
     setCustomerEmail("");
     setNotes("");
+    if (collapsible) setOpen(false);
     router.refresh();
   }
 
   if (activities.length === 0) {
     return <p className="text-muted-foreground">Tu centro todavía no cargó actividades para vender.</p>;
+  }
+
+  if (!open) {
+    return (
+      <Button type="button" className="mb-6" onClick={() => setOpen(true)}>
+        <Plus className="h-4 w-4" />
+        Agregar venta
+      </Button>
+    );
   }
 
   return (
@@ -110,7 +127,7 @@ export function SaleForm({ activities, actor = "seller" }: { activities: Activit
           <select
             className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
             value={paymentMethod}
-            onChange={(event) => setPaymentMethod(event.target.value as (typeof paymentMethods)[number]["value"])}
+            onChange={(event) => onPaymentMethodChange(event.target.value as (typeof paymentMethods)[number]["value"])}
           >
             {paymentMethods.map((method) => (
               <option key={method.value} value={method.value}>
@@ -132,7 +149,7 @@ export function SaleForm({ activities, actor = "seller" }: { activities: Activit
         <div>
           <label className="mb-1 block text-sm font-medium">Precio unitario</label>
           <div className="flex gap-2">
-            <Input inputMode="decimal" required value={unitPrice} onChange={(event) => setUnitPrice(event.target.value)} />
+            <Input inputMode="decimal" required readOnly value={unitPrice} />
             <select
               className="flex h-10 rounded-md border bg-background px-2 text-sm"
               value={currency}
@@ -178,6 +195,11 @@ export function SaleForm({ activities, actor = "seller" }: { activities: Activit
       <Button type="submit" disabled={loading}>
         {loading ? "Guardando..." : "Registrar venta"}
       </Button>
+      {collapsible ? (
+        <Button type="button" variant="outline" disabled={loading} onClick={() => setOpen(false)}>
+          Cancelar
+        </Button>
+      ) : null}
     </form>
   );
 }

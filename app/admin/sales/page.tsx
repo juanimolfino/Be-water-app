@@ -29,7 +29,7 @@ export default async function AdminSalesPage() {
         pagar.
       </p>
 
-      <SaleForm activities={activities} actor="admin" />
+      <SaleForm activities={activities} actor="admin" collapsible />
 
       <h2 className="mb-3 text-xl font-semibold">Pendientes de validar ({pending.length})</h2>
       {pending.length === 0 ? (
