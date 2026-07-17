@@ -116,9 +116,20 @@ superadmin (one, fixed by SUPERADMIN_EMAIL)
   admin approved paying the *seller*), `reservationStatus` (is the booking still on), and
   `paymentStatus` (has the *customer* paid the center). A sale can be any combination, e.g.
   `commissionStatus: pending`, `reservationStatus: active`, `paymentStatus: unpaid` all at once.
+- **`expense_categories`**: `diveCenterId`, `name`, unique per center
+  (`expense_categories_center_name_idx` on `(diveCenterId, name)`) — admin-defined, arbitrary
+  (e.g. "Combustible", "Alquiler", "Mantenimiento").
+- **`expenses`**: money the center has **already paid** (§6.7) — not a payable/pending concept
+  like sales commissions. `diveCenterId`, `categoryId` (FK, `onDelete: "restrict"` — can't delete a
+  category with expenses on it, same guard pattern as `deleteActivity`), `amount`, `currency`
+  (`USD`/`CRC`), `paymentMethod` (`cash`/`bank_transfer` — a **different** enum from
+  `sales.paymentMethod`, no `card`/`tour_operator` concept here), `expenseDate` (a plain `date`,
+  like `sales.tourDate` — drives filtering, not `createdAt`), `description`, `providerName`
+  (free text, who got paid — not linked to `activities.providerName`), `createdByUserId`.
 
 Relations are declared with Drizzle `relations()` at the bottom of `schema.ts` and power the
-`with: { activity: true, seller: true }` query patterns in `lib/db/queries.ts`.
+`with: { activity: true, seller: true }` / `with: { category: true }` query patterns in
+`lib/db/queries.ts`.
 
 ## 5. Feature map: who does what, and where the code is
 
@@ -130,7 +141,7 @@ Relations are declared with Drizzle `relations()` at the bottom of `schema.ts` a
   admin name/email/password). See §2.
 
 ### Admin (`/admin`, layout in `app/admin/layout.tsx` — nav: Inicio, Actividades, Vendedores,
-Ventas, Agenda, Período, Configuración)
+Ventas, Agenda, Período, Gastos, Configuración)
 - `/admin` (`app/admin/page.tsx`): stat cards (activities, sellers, pending sales).
 - `/admin/activities` (`app/admin/activities/page.tsx` → `components/admin/activity-manager.tsx`):
   full CRUD over the catalog.
@@ -167,6 +178,17 @@ Ventas, Agenda, Período, Configuración)
 - `/admin/report` (`app/admin/report/page.tsx`): the payment-period report — a quick-filter row of
   the last 6 closed payment periods plus a manual date/activity/provider filter form, revenue/
   commission/provider-payment summaries, daily breakdown, full sale detail table. See §6.4.
+- `/admin/expenses` (`app/admin/expenses/page.tsx`): money the center has already paid out — see
+  §6.7 for the full model. `components/admin/expense-category-manager.tsx` (create/delete
+  categories inline, immediate persist per click — unlike `payment-days-form.tsx`'s stage-then-save
+  chips) and `components/admin/expense-form.tsx` (a modal reachable from a normal button on desktop
+  **and** a `fixed`, mobile-only floating "+" button — `hidden md:inline-flex` /
+  `md:hidden` pair). Same quick-period-filter + manual-filter-form pattern as `/admin/report`
+  (reuses `getCurrentPaymentPeriod`/`getPastPaymentPeriods`), plus a "Mes en curso" quick filter and
+  category/provider selects. Total for the active filter is computed from the **full** filtered
+  set via `formatMoneyTotals`, then only `limit` rows (default 10, `?limit=` bumps by 10 via a "Ver
+  10 más" link — no client-side pagination state) are rendered in the table, newest
+  `expenseDate` first.
 - `/admin/settings` (`app/admin/settings/page.tsx` + `components/admin/payment-days-form.tsx`):
   edit `dive_centers.commissionPaymentDays` (`PATCH /api/admin/settings/payment-days`), the days
   of the month that close a payment period (§6.4).
@@ -322,8 +344,12 @@ logic — reuse them for any new sales table:
   or `"/api/seller/sales"`. Only render it for `reservationStatus === "active"` rows.
 - `lib/reports/money.ts` (`formatMoneyTotals`): sums a list of `{ currency, amount }` rows per
   currency and formats them (`"$12.50"`, or `"$10.00 · ₡500.00"` when mixed, `"—"` when empty).
-  Shared by `/admin/report` and the seller period footer below — don't re-sum currency totals
-  inline, add a new row shape and call this.
+  Shared by `/admin/report`, `/admin/expenses` (§6.7), and the seller period footer below — don't
+  re-sum currency totals inline, add a new row shape and call this.
+- `lib/reports/date.ts` (`dateInputValue`, `parseDate`): `Date` ↔ `"YYYY-MM-DD"` (`<input
+  type="date">` value) conversion. Shared by `/admin/report` and `/admin/expenses` — both build
+  their quick-filter/manual-filter query strings with these instead of hand-rolling
+  `toISOString().slice(0, 10)` again.
 
 Column order convention adopted across these tables: tour date/status first, financial columns in
 the middle, `Fecha de venta` (sale date) then `Estado de comisión` immediately before `Comisión`
@@ -333,6 +359,36 @@ the middle, `Fecha de venta` (sale date) then `Estado de comisión` immediately 
 `getCurrentPaymentPeriod()`, §6.4) and, for `active` sales with `saleDate` inside that period, the
 approved vs. pending commission totals (`formatMoneyTotals`). This mirrors `/admin/report` at
 seller scale so a seller can see what they're about to get paid without needing report access.
+
+### 6.7 Expenses (`/admin/expenses`)
+
+Expenses are **already-paid** center costs — a different concept from sales' pending/approved
+commission workflow, and currently has no validation step at all (nothing to approve; the admin
+logging it already paid it).
+
+- Categories (`expense_categories`) are per-center and admin-managed: create via
+  `POST /api/admin/expense-categories` (409 if the name already exists for that center — enforced
+  by the DB unique index, caught in the route handler by matching the constraint name in the
+  thrown error message), delete via `DELETE /api/admin/expense-categories/[id]` (409 if any
+  expense still references it — `deleteExpenseCategory()` checks first, same pattern as
+  `deleteActivity()`).
+- Creating an expense (`POST /api/admin/expenses`, `createExpense()` in `lib/db/queries.ts`)
+  re-validates that `categoryId` belongs to the caller's `diveCenterId`
+  (`getExpenseCategoryForCenter()`) before inserting — a category id alone doesn't prove tenant
+  ownership the way it does for FKs scoped through `sales`/`activities`.
+- `listExpensesForCenter()` takes optional `from`/`to` (plain `"YYYY-MM-DD"` strings, compared
+  directly against the `date`-typed `expenseDate` column with `gte`/`lte` — no `Date` parsing, so
+  no timezone edge cases), `categoryId`, `providerName`, and returns **every** matching row
+  (sorted newest `expenseDate` first); the page slices it for pagination and sums it for the total
+  — see the `/admin/expenses` bullet in §5 for how those two derive from the one fetch.
+  `listExpenseProvidersForCenter()` (a `selectDistinct` query) powers the provider filter dropdown
+  from historical `providerName` values, independent of the current filter (so picking a provider
+  doesn't remove other providers from the dropdown).
+- Not built yet, intentionally out of scope for this pass: editing/deleting an individual expense,
+  and any "Ganancias" (revenue − expenses) view or charts — the user's stated next step once this
+  ships. When building that, reuse `formatMoneyTotals`/the payment-period helpers rather than
+  re-deriving totals, and pull both `listSalesForCenter` and `listExpensesForCenter` results into
+  one page.
 
 ## 7. Migrations (`drizzle/`)
 
@@ -351,6 +407,7 @@ Generate with `npm run db:generate` after editing `lib/db/schema.ts`, apply with
 | `0007_amazing_the_call` | `sales.tourDate`. |
 | `0008_sloppy_aaron_stack` | `reservation_status` enum + cancellation fields on `sales`. |
 | `0009_overconfident_cyclops` | `payment_status` enum (`paid`/`unpaid`) + `sales.paymentStatus`, default `paid`. |
+| `0010_overconfident_raider` | `expense_payment_method` enum + `expense_categories`/`expenses` tables. **Generated but not yet applied** — batch this with the next `db:migrate` run. |
 
 After any schema change in production: run the migration against `DATABASE_URL`, then re-apply
 `lib/db/rls.sql` if a new table was added.
@@ -393,7 +450,7 @@ Pages:
 - `/home` — post-login role router.
 - `/superadmin` — global center overview + create center/admin.
 - `/admin`, `/admin/activities`, `/admin/sellers`, `/admin/sales`, `/admin/agenda`,
-  `/admin/report`, `/admin/settings`.
+  `/admin/report`, `/admin/expenses`, `/admin/settings`.
 - `/seller`, `/seller/agenda`.
 - `/dashboard` — legacy AI-jobs demo (unused).
 
@@ -404,6 +461,8 @@ API routes:
   `DELETE /api/admin/activities/[id]`
 - `POST /api/admin/sales` (commission-free admin sale), `POST /api/admin/sales/[id]/validate`,
   `POST /api/admin/sales/[id]/cancel`, `POST /api/admin/sales/[id]/mark-paid`
+- `POST /api/admin/expense-categories`, `DELETE /api/admin/expense-categories/[id]`
+- `POST /api/admin/expenses`
 - `PATCH /api/admin/settings/payment-days`
 - `POST /api/seller/sales`, `POST /api/seller/sales/[id]/cancel`,
   `POST /api/seller/sales/[id]/mark-paid`

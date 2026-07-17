@@ -4,20 +4,12 @@ import { ReservationDateCell } from "@/components/sales/reservation-date-cell";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import { getDiveCenterById, listActivitiesForCenter, listSalesForCenter } from "@/lib/db/queries";
+import { dateInputValue, parseDate } from "@/lib/reports/date";
 import { formatMoneyTotals } from "@/lib/reports/money";
 import { getCurrentPaymentPeriod, getPastPaymentPeriods } from "@/lib/reports/payment-period";
 import { tourStatusClasses } from "@/lib/sales/status";
 
 export const metadata = { title: "Período" };
-
-function dateInputValue(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function parseDate(value: string, endOfDay = false) {
-  const date = new Date(`${value}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}`);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
 
 export default async function AdminReportPage({
   searchParams

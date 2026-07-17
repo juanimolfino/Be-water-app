@@ -1,9 +1,11 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import {
   activities,
   credits,
   diveCenters,
+  expenseCategories,
+  expenses,
   jobs,
   sales,
   subscriptions,
@@ -11,6 +13,7 @@ import {
   users,
   type Currency,
   type CommissionStatus,
+  type ExpensePaymentMethod,
   type JobType,
   type PaymentMethod,
   type PaymentStatus,
@@ -546,4 +549,97 @@ export async function markSalePaid(input: { saleId: string; diveCenterId: string
     .set({ paymentStatus: "paid", updatedAt: new Date() })
     .where(and(...conditions))
     .returning();
+}
+
+// --- Expenses ---------------------------------------------------------
+
+export async function listExpenseCategoriesForCenter(diveCenterId: string) {
+  return getDb().query.expenseCategories.findMany({
+    where: eq(expenseCategories.diveCenterId, diveCenterId),
+    orderBy: asc(expenseCategories.name)
+  });
+}
+
+export async function createExpenseCategory(input: { diveCenterId: string; name: string }) {
+  const [category] = await getDb()
+    .insert(expenseCategories)
+    .values({ diveCenterId: input.diveCenterId, name: input.name })
+    .returning();
+  return category;
+}
+
+export async function getExpenseCategoryForCenter(categoryId: string, diveCenterId: string) {
+  return getDb().query.expenseCategories.findFirst({
+    where: and(eq(expenseCategories.id, categoryId), eq(expenseCategories.diveCenterId, diveCenterId))
+  });
+}
+
+export async function deleteExpenseCategory(categoryId: string, diveCenterId: string) {
+  const existingExpense = await getDb().query.expenses.findFirst({
+    columns: { id: true },
+    where: and(eq(expenses.categoryId, categoryId), eq(expenses.diveCenterId, diveCenterId))
+  });
+  if (existingExpense) return "has_expenses" as const;
+
+  const [deleted] = await getDb()
+    .delete(expenseCategories)
+    .where(and(eq(expenseCategories.id, categoryId), eq(expenseCategories.diveCenterId, diveCenterId)))
+    .returning({ id: expenseCategories.id });
+  return deleted ? ("deleted" as const) : ("not_found" as const);
+}
+
+export async function createExpense(input: {
+  diveCenterId: string;
+  categoryId: string;
+  amount: string;
+  currency: Currency;
+  paymentMethod: ExpensePaymentMethod;
+  expenseDate: string;
+  description: string;
+  providerName?: string;
+  createdByUserId: string;
+}) {
+  const [expense] = await getDb()
+    .insert(expenses)
+    .values({
+      diveCenterId: input.diveCenterId,
+      categoryId: input.categoryId,
+      amount: input.amount,
+      currency: input.currency,
+      paymentMethod: input.paymentMethod,
+      expenseDate: input.expenseDate,
+      description: input.description,
+      providerName: input.providerName || null,
+      createdByUserId: input.createdByUserId
+    })
+    .returning();
+  return expense;
+}
+
+export async function listExpensesForCenter(input: {
+  diveCenterId: string;
+  from?: string;
+  to?: string;
+  categoryId?: string;
+  providerName?: string;
+}) {
+  const conditions = [eq(expenses.diveCenterId, input.diveCenterId)];
+  if (input.from) conditions.push(gte(expenses.expenseDate, input.from));
+  if (input.to) conditions.push(lte(expenses.expenseDate, input.to));
+  if (input.categoryId) conditions.push(eq(expenses.categoryId, input.categoryId));
+  if (input.providerName) conditions.push(eq(expenses.providerName, input.providerName));
+
+  return getDb().query.expenses.findMany({
+    where: and(...conditions),
+    orderBy: [desc(expenses.expenseDate), desc(expenses.createdAt)],
+    with: { category: true }
+  });
+}
+
+export async function listExpenseProvidersForCenter(diveCenterId: string) {
+  const rows = await getDb()
+    .selectDistinct({ providerName: expenses.providerName })
+    .from(expenses)
+    .where(and(eq(expenses.diveCenterId, diveCenterId), sql`${expenses.providerName} is not null`));
+  return rows.map((row) => row.providerName as string).sort((a, b) => a.localeCompare(b));
 }

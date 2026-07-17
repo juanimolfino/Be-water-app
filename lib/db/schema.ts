@@ -29,6 +29,7 @@ export const paymentMethodEnum = pgEnum("payment_method", ["cash", "card", "tour
 export const commissionStatusEnum = pgEnum("commission_status", ["pending", "approved", "rejected"]);
 export const reservationStatusEnum = pgEnum("reservation_status", ["active", "cancelled"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["paid", "unpaid"]);
+export const expensePaymentMethodEnum = pgEnum("expense_payment_method", ["cash", "bank_transfer"]);
 
 export const diveCenters = pgTable("dive_centers", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -119,6 +120,33 @@ export const sales = pgTable("sales", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 });
 
+export const expenseCategories = pgTable(
+  "expense_categories",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    diveCenterId: uuid("dive_center_id").references(() => diveCenters.id, { onDelete: "cascade" }).notNull(),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [uniqueIndex("expense_categories_center_name_idx").on(table.diveCenterId, table.name)]
+);
+
+export const expenses = pgTable("expenses", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  diveCenterId: uuid("dive_center_id").references(() => diveCenters.id, { onDelete: "cascade" }).notNull(),
+  categoryId: uuid("category_id").references(() => expenseCategories.id, { onDelete: "restrict" }).notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: currencyEnum("currency").default("USD").notNull(),
+  paymentMethod: expensePaymentMethodEnum("payment_method").notNull(),
+  expenseDate: date("expense_date").notNull(),
+  description: text("description").notNull(),
+  providerName: text("provider_name"),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+});
+
 export const credits = pgTable("credits", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
@@ -174,7 +202,9 @@ export const userRelations = relations(users, ({ one, many }) => ({
 export const diveCenterRelations = relations(diveCenters, ({ many }) => ({
   members: many(users),
   activities: many(activities),
-  sales: many(sales)
+  sales: many(sales),
+  expenseCategories: many(expenseCategories),
+  expenses: many(expenses)
 }));
 
 export const activityRelations = relations(activities, ({ one, many }) => ({
@@ -187,6 +217,17 @@ export const saleRelations = relations(sales, ({ one }) => ({
   activity: one(activities, { fields: [sales.activityId], references: [activities.id] }),
   seller: one(users, { fields: [sales.sellerId], references: [users.id] }),
   validatedBy: one(users, { fields: [sales.validatedByUserId], references: [users.id] })
+}));
+
+export const expenseCategoryRelations = relations(expenseCategories, ({ one, many }) => ({
+  diveCenter: one(diveCenters, { fields: [expenseCategories.diveCenterId], references: [diveCenters.id] }),
+  expenses: many(expenses)
+}));
+
+export const expenseRelations = relations(expenses, ({ one }) => ({
+  diveCenter: one(diveCenters, { fields: [expenses.diveCenterId], references: [diveCenters.id] }),
+  category: one(expenseCategories, { fields: [expenses.categoryId], references: [expenseCategories.id] }),
+  createdBy: one(users, { fields: [expenses.createdByUserId], references: [users.id] })
 }));
 
 export type User = typeof users.$inferSelect;
@@ -202,3 +243,6 @@ export type PaymentMethod = typeof paymentMethodEnum.enumValues[number];
 export type CommissionStatus = typeof commissionStatusEnum.enumValues[number];
 export type ReservationStatus = typeof reservationStatusEnum.enumValues[number];
 export type PaymentStatus = typeof paymentStatusEnum.enumValues[number];
+export type ExpenseCategory = typeof expenseCategories.$inferSelect;
+export type Expense = typeof expenses.$inferSelect;
+export type ExpensePaymentMethod = typeof expensePaymentMethodEnum.enumValues[number];
