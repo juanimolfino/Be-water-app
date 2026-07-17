@@ -20,6 +20,9 @@ export function SaleForm({ activities }: { activities: Activity[] }) {
   const [unitPrice, setUnitPrice] = useState(activities[0]?.rackPrice ?? "");
   const [currency, setCurrency] = useState<"USD" | "CRC">(activities[0]?.currency ?? "USD");
   const [paymentMethod, setPaymentMethod] = useState<(typeof paymentMethods)[number]["value"]>("cash");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +55,7 @@ export function SaleForm({ activities }: { activities: Activity[] }) {
     const res = await fetch("/api/seller/sales", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activityId, quantity, unitPrice, currency, paymentMethod, notes })
+      body: JSON.stringify({ activityId, quantity, unitPrice, currency, paymentMethod, customerName, customerPhone, customerEmail, notes })
     });
     setLoading(false);
     if (!res.ok) {
@@ -62,6 +65,9 @@ export function SaleForm({ activities }: { activities: Activity[] }) {
     }
     setSuccess(true);
     setQuantity(1);
+    setCustomerName("");
+    setCustomerPhone("");
+    setCustomerEmail("");
     setNotes("");
     router.refresh();
   }
@@ -125,6 +131,20 @@ export function SaleForm({ activities }: { activities: Activity[] }) {
               <option value="CRC">CRC</option>
             </select>
           </div>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Nombre del cliente</label>
+          <Input required value={customerName} onChange={(event) => setCustomerName(event.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Teléfono del cliente</label>
+          <Input required type="tel" value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Email del cliente (opcional)</label>
+          <Input type="email" value={customerEmail} onChange={(event) => setCustomerEmail(event.target.value)} />
         </div>
       </div>
       <div>

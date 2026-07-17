@@ -418,6 +418,9 @@ export async function createSale(input: {
   currency: Currency;
   paymentMethod: PaymentMethod;
   commissionPerUnit: number;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
   notes?: string;
 }) {
   const grossAmount = (input.quantity * input.unitPrice).toFixed(2);
@@ -435,6 +438,9 @@ export async function createSale(input: {
       paymentMethod: input.paymentMethod,
       grossAmount,
       commissionAmount,
+      customerName: input.customerName,
+      customerPhone: input.customerPhone,
+      customerEmail: input.customerEmail || null,
       notes: input.notes || null
     })
     .returning();

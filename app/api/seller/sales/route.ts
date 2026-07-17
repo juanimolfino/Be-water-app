@@ -10,6 +10,9 @@ const schema = z.object({
   unitPrice: z.coerce.number().min(0),
   currency: z.enum(["CRC", "USD"]),
   paymentMethod: z.enum(["cash", "card", "tour_operator"]),
+  customerName: z.string().trim().min(1, "El nombre del cliente es obligatorio"),
+  customerPhone: z.string().trim().min(1, "El teléfono del cliente es obligatorio"),
+  customerEmail: z.string().trim().email("Ingresá un email válido").optional().or(z.literal("")),
   notes: z.string().trim().optional()
 });
 
@@ -47,6 +50,9 @@ export async function POST(request: Request) {
     currency: parsed.data.currency,
     paymentMethod: parsed.data.paymentMethod,
     commissionPerUnit,
+    customerName: parsed.data.customerName,
+    customerPhone: parsed.data.customerPhone,
+    customerEmail: parsed.data.customerEmail,
     notes: parsed.data.notes
   });
 

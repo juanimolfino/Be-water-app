@@ -37,6 +37,7 @@ export default async function AdminSalesPage() {
               <tr>
                 <th className="px-4 py-2">Fecha</th>
                 <th className="px-4 py-2">Vendedor</th>
+                <th className="px-4 py-2">Cliente</th>
                 <th className="px-4 py-2">Actividad</th>
                 <th className="px-4 py-2">Cant.</th>
                 <th className="px-4 py-2">Total</th>
@@ -50,6 +51,10 @@ export default async function AdminSalesPage() {
                 <tr key={sale.id} className="border-t">
                   <td className="px-4 py-2">{new Date(sale.saleDate).toLocaleDateString()}</td>
                   <td className="px-4 py-2">{sale.seller.fullName ?? sale.seller.email}</td>
+                  <td className="px-4 py-2">
+                    <p>{sale.customerName ?? "—"}</p>
+                    <p className="text-muted-foreground">{sale.customerPhone ?? ""}</p>
+                  </td>
                   <td className="px-4 py-2">{sale.activity.tourName}</td>
                   <td className="px-4 py-2">{sale.quantity}</td>
                   <td className="px-4 py-2">
@@ -81,6 +86,7 @@ export default async function AdminSalesPage() {
               <tr>
                 <th className="px-4 py-2">Fecha</th>
                 <th className="px-4 py-2">Vendedor</th>
+                <th className="px-4 py-2">Cliente</th>
                 <th className="px-4 py-2">Actividad</th>
                 <th className="px-4 py-2">Comisión</th>
                 <th className="px-4 py-2">Estado</th>
@@ -91,6 +97,10 @@ export default async function AdminSalesPage() {
                 <tr key={sale.id} className="border-t">
                   <td className="px-4 py-2">{new Date(sale.saleDate).toLocaleDateString()}</td>
                   <td className="px-4 py-2">{sale.seller.fullName ?? sale.seller.email}</td>
+                  <td className="px-4 py-2">
+                    <p>{sale.customerName ?? "—"}</p>
+                    <p className="text-muted-foreground">{sale.customerPhone ?? ""}</p>
+                  </td>
                   <td className="px-4 py-2">{sale.activity.tourName}</td>
                   <td className="px-4 py-2">
                     {sale.currency === "USD" ? "$" : "₡"}
