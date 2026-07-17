@@ -57,6 +57,13 @@
       "when": 1784322830246,
       "tag": "0007_amazing_the_call",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784323300339,
+      "tag": "0008_sloppy_aaron_stack",
+      "breakpoints": true
     }
   ]
 }

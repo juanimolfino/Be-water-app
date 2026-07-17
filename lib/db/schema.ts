@@ -27,6 +27,7 @@ export const roleEnum = pgEnum("role", ["superadmin", "admin", "seller"]);
 export const currencyEnum = pgEnum("currency", ["CRC", "USD"]);
 export const paymentMethodEnum = pgEnum("payment_method", ["cash", "card", "tour_operator"]);
 export const commissionStatusEnum = pgEnum("commission_status", ["pending", "approved", "rejected"]);
+export const reservationStatusEnum = pgEnum("reservation_status", ["active", "cancelled"]);
 
 export const diveCenters = pgTable("dive_centers", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -100,12 +101,16 @@ export const sales = pgTable("sales", {
   grossAmount: numeric("gross_amount", { precision: 10, scale: 2 }).notNull(),
   commissionAmount: numeric("commission_amount", { precision: 10, scale: 2 }).notNull(),
   commissionStatus: commissionStatusEnum("commission_status").default("pending").notNull(),
+  reservationStatus: reservationStatusEnum("reservation_status").default("active").notNull(),
   saleDate: timestamp("sale_date", { withTimezone: true }).defaultNow().notNull(),
   tourDate: date("tour_date"),
   customerName: text("customer_name"),
   customerPhone: text("customer_phone"),
   customerEmail: text("customer_email"),
   notes: text("notes"),
+  cancellationReason: text("cancellation_reason"),
+  cancelledByUserId: uuid("cancelled_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   validatedByUserId: uuid("validated_by_user_id").references(() => users.id, { onDelete: "set null" }),
   validatedAt: timestamp("validated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -193,3 +198,4 @@ export type Sale = typeof sales.$inferSelect;
 export type Currency = typeof currencyEnum.enumValues[number];
 export type PaymentMethod = typeof paymentMethodEnum.enumValues[number];
 export type CommissionStatus = typeof commissionStatusEnum.enumValues[number];
+export type ReservationStatus = typeof reservationStatusEnum.enumValues[number];

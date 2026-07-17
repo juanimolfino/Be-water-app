@@ -467,7 +467,7 @@ export async function createSale(input: {
 export async function listSalesForCenter(diveCenterId: string, status?: "pending" | "approved" | "rejected") {
   return getDb().query.sales.findMany({
     where: status
-      ? and(eq(sales.diveCenterId, diveCenterId), eq(sales.commissionStatus, status))
+      ? and(eq(sales.diveCenterId, diveCenterId), eq(sales.commissionStatus, status), eq(sales.reservationStatus, "active"))
       : eq(sales.diveCenterId, diveCenterId),
     orderBy: desc(sales.saleDate),
     with: { activity: true, seller: true }
@@ -499,5 +499,32 @@ export async function validateSale(input: {
     .where(
       and(eq(sales.id, input.saleId), eq(sales.diveCenterId, input.diveCenterId), eq(sales.commissionStatus, "pending"))
     )
+    .returning();
+}
+
+export async function cancelSale(input: {
+  saleId: string;
+  diveCenterId: string;
+  cancelledByUserId: string;
+  cancellationReason: string;
+  sellerId?: string;
+}) {
+  const conditions = [
+    eq(sales.id, input.saleId),
+    eq(sales.diveCenterId, input.diveCenterId),
+    eq(sales.reservationStatus, "active")
+  ];
+  if (input.sellerId) conditions.push(eq(sales.sellerId, input.sellerId));
+
+  return getDb()
+    .update(sales)
+    .set({
+      reservationStatus: "cancelled",
+      cancellationReason: input.cancellationReason,
+      cancelledByUserId: input.cancelledByUserId,
+      cancelledAt: new Date(),
+      updatedAt: new Date()
+    })
+    .where(and(...conditions))
     .returning();
 }

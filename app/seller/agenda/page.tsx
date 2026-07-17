@@ -11,7 +11,7 @@ export default async function SellerAgendaPage({ searchParams }: { searchParams:
     <>
       <h1 className="mb-1 text-3xl font-semibold">Agenda</h1>
       <p className="mb-6 text-muted-foreground">Tus tours programados, ordenados por fecha.</p>
-      <WeeklyAgenda entries={sales} basePath="/seller/agenda" week={params.week} />
+      <WeeklyAgenda entries={sales} basePath="/seller/agenda" week={params.week} cancelEndpoint="/api/seller/sales" />
     </>
   );
 }

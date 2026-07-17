@@ -1,4 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 export type AgendaEntry = {
   id: string;
@@ -6,6 +13,9 @@ export type AgendaEntry = {
   quantity: number;
   customerName: string | null;
   customerPhone: string | null;
+  commissionStatus: "pending" | "approved" | "rejected";
+  reservationStatus: "active" | "cancelled";
+  cancellationReason: string | null;
   activity: { tourName: string; providerName: string; isOwnActivity: boolean };
 };
 
@@ -23,13 +33,17 @@ function dateKey(date: Date) {
 
 function startOfWeek(date: Date) {
   const start = new Date(date);
-  const offset = (start.getDay() + 6) % 7;
-  start.setDate(start.getDate() - offset);
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
   start.setHours(12, 0, 0, 0);
   return start;
 }
 
-export function WeeklyAgenda({ entries, basePath, week }: { entries: AgendaEntry[]; basePath: string; week?: string }) {
+export function WeeklyAgenda({ entries, basePath, week, cancelEndpoint }: { entries: AgendaEntry[]; basePath: string; week?: string; cancelEndpoint: string }) {
+  const router = useRouter();
+  const [cancelling, setCancelling] = useState<AgendaEntry | null>(null);
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const start = startOfWeek(parseDate(week));
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(start);
@@ -41,47 +55,92 @@ export function WeeklyAgenda({ entries, basePath, week }: { entries: AgendaEntry
   const next = new Date(start);
   next.setDate(start.getDate() + 7);
 
+  async function confirmCancellation() {
+    if (!cancelling) return;
+    setSaving(true);
+    setError(null);
+    const response = await fetch(`${cancelEndpoint}/${cancelling.id}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason })
+    });
+    const body = (await response.json().catch(() => ({}))) as { error?: string };
+    setSaving(false);
+    if (!response.ok) {
+      setError(body.error ?? "No se pudo anular la reserva.");
+      return;
+    }
+    setCancelling(null);
+    setReason("");
+    router.refresh();
+  }
+
   return (
     <>
       <div className="mb-6 flex items-center justify-between gap-3">
-        <Link className="inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium" href={`${basePath}?week=${dateKey(previous)}`}>Semana anterior</Link>
+        <Link className="inline-flex h-9 items-center gap-1 rounded-md border px-3 text-sm font-medium" href={`${basePath}?week=${dateKey(previous)}`}><ChevronLeft className="h-4 w-4" /> Semana anterior</Link>
         <p className="text-sm font-medium">{start.toLocaleDateString()} al {days[6].toLocaleDateString()}</p>
-        <Link className="inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium" href={`${basePath}?week=${dateKey(next)}`}>Semana siguiente</Link>
+        <Link className="inline-flex h-9 items-center gap-1 rounded-md border px-3 text-sm font-medium" href={`${basePath}?week=${dateKey(next)}`}>Semana siguiente <ChevronRight className="h-4 w-4" /></Link>
       </div>
-      <div className="space-y-4">
+
+      <div className="grid overflow-hidden rounded-lg border md:grid-cols-7">
         {days.map((day) => {
           const dayEntries = entries.filter((entry) => entry.tourDate === dateKey(day));
           const ownEntries = dayEntries.filter((entry) => entry.activity.isOwnActivity);
           const thirdPartyEntries = dayEntries.filter((entry) => !entry.activity.isOwnActivity);
+          const today = dateKey(day) === dateKey(new Date());
           return (
-            <section key={dateKey(day)} className="border-t pt-4 first:border-t-0 first:pt-0">
-              <h2 className="mb-3 text-lg font-semibold">{day.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</h2>
-              {dayEntries.length === 0 ? <p className="text-sm text-muted-foreground">Sin tours programados.</p> : (
-                <div className="space-y-3">
-                  {ownEntries.length > 0 ? <AgendaGroup title="Actividades propias" entries={ownEntries} /> : null}
-                  {thirdPartyEntries.length > 0 ? <AgendaGroup title="Actividades de terceros" entries={thirdPartyEntries} /> : null}
-                </div>
-              )}
+            <section key={dateKey(day)} className="min-h-72 border-b p-3 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0">
+              <div className="mb-3 flex items-baseline justify-between">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">{day.toLocaleDateString(undefined, { weekday: "short" })}</p>
+                <p className={today ? "grid h-8 w-8 place-items-center rounded-full bg-primary text-sm font-semibold text-primary-foreground" : "text-2xl font-semibold"}>{day.getDate()}</p>
+              </div>
+              <div className="space-y-2">
+                {ownEntries.map((entry) => <ReservationBlock key={entry.id} entry={entry} onCancel={() => { setCancelling(entry); setReason(""); setError(null); }} />)}
+                {ownEntries.length > 0 && thirdPartyEntries.length > 0 ? <div className="border-t pt-2" /> : null}
+                {thirdPartyEntries.map((entry) => <ReservationBlock key={entry.id} entry={entry} onCancel={() => { setCancelling(entry); setReason(""); setError(null); }} />)}
+              </div>
             </section>
           );
         })}
       </div>
+
+      {cancelling ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="cancel-reservation-title">
+          <div className="w-full max-w-md rounded-lg border bg-card p-6 shadow-lg">
+            <h2 id="cancel-reservation-title" className="text-lg font-semibold">Anular reserva</h2>
+            <p className="mt-2 text-sm text-muted-foreground">La reserva dejará de contar como ingreso, comisión o pago a proveedor. Indicá el motivo para conservar el historial.</p>
+            <Textarea className="mt-4" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Motivo de la cancelación" />
+            {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+            <div className="mt-6 flex justify-end gap-2">
+              <Button type="button" variant="outline" disabled={saving} onClick={() => setCancelling(null)}>Volver</Button>
+              <Button type="button" variant="destructive" disabled={saving || reason.trim().length < 3} onClick={confirmCancellation}>{saving ? "Anulando..." : "Confirmar anulación"}</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
 
-function AgendaGroup({ title, entries }: { title: string; entries: AgendaEntry[] }) {
+function ReservationBlock({ entry, onCancel }: { entry: AgendaEntry; onCancel: () => void }) {
+  const cancelled = entry.reservationStatus === "cancelled";
+  const statusClass = cancelled
+    ? "border-destructive bg-destructive/10"
+    : entry.commissionStatus === "approved"
+      ? "border-emerald-600 bg-emerald-50"
+      : "border-amber-500 bg-amber-50";
+  const statusLabel = cancelled ? "Anulada" : entry.commissionStatus === "approved" ? "Confirmada" : "Comisión pendiente";
   return (
-    <div>
-      <p className="mb-2 text-sm font-medium text-muted-foreground">{title}</p>
-      <div className="grid gap-2 md:grid-cols-2">
-        {entries.map((entry) => (
-          <div key={entry.id} className="border-l-2 border-primary pl-3 text-sm">
-            <p className="font-medium">{entry.activity.tourName} · {entry.quantity} {entry.quantity === 1 ? "persona" : "personas"}</p>
-            <p className="text-muted-foreground">{entry.activity.providerName} · {entry.customerName ?? "Cliente sin nombre"}{entry.customerPhone ? ` · ${entry.customerPhone}` : ""}</p>
-          </div>
-        ))}
+    <article className={`border-l-4 p-2 text-xs ${statusClass}`}>
+      <div className="flex items-start justify-between gap-2">
+        <p className="font-semibold">{entry.activity.tourName}</p>
+        {!cancelled ? <Button type="button" variant="ghost" size="sm" onClick={onCancel} title="Anular reserva" aria-label="Anular reserva"><XCircle className="h-4 w-4" /></Button> : null}
       </div>
-    </div>
+      <p>{entry.quantity} {entry.quantity === 1 ? "persona" : "personas"} · {entry.activity.isOwnActivity ? "Propia" : "Tercero"}</p>
+      <p className="text-muted-foreground">{entry.customerName ?? "Cliente sin nombre"}{entry.customerPhone ? ` · ${entry.customerPhone}` : ""}</p>
+      <p className="mt-1 font-medium">{statusLabel}</p>
+      {cancelled && entry.cancellationReason ? <p className="mt-1 text-muted-foreground">{entry.cancellationReason}</p> : null}
+    </article>
   );
 }

@@ -50,14 +50,15 @@ export default async function AdminReportPage({
       (!params.activity || sale.activityId === params.activity) &&
       (!params.provider || sale.activity.providerName === params.provider);
   });
-  const daily = new Map<string, typeof filteredSales>();
-  for (const sale of filteredSales) {
+  const financialSales = filteredSales.filter((sale) => sale.reservationStatus === "active");
+  const daily = new Map<string, typeof financialSales>();
+  for (const sale of financialSales) {
     const day = dateInputValue(sale.saleDate);
     daily.set(day, [...(daily.get(day) ?? []), sale]);
   }
-  const approvedCommissions = filteredSales.filter((sale) => sale.commissionStatus === "approved");
+  const approvedCommissions = financialSales.filter((sale) => sale.commissionStatus === "approved");
   const providerPayments = new Map<string, { provider: string; sales: number; currency: "USD" | "CRC"; amount: number }>();
-  for (const sale of filteredSales) {
+  for (const sale of financialSales) {
     if (sale.activity.isOwnActivity || !sale.activity.netPrice) continue;
     const key = `${sale.activity.providerName}:${sale.activity.currency}`;
     const current = providerPayments.get(key) ?? {
@@ -101,9 +102,9 @@ export default async function AdminReportPage({
       </form>
 
       <section className="mb-8 grid gap-4 md:grid-cols-4">
-        <Summary label="Ingresos" value={moneyTotals(filteredSales.map((sale) => ({ currency: sale.currency, amount: sale.grossAmount })))} />
+        <Summary label="Ingresos" value={moneyTotals(financialSales.map((sale) => ({ currency: sale.currency, amount: sale.grossAmount })))} />
         <Summary label="Comisiones aprobadas" value={moneyTotals(approvedCommissions.map((sale) => ({ currency: sale.currency, amount: sale.commissionAmount })))} />
-        <Summary label="Comisiones pendientes" value={moneyTotals(filteredSales.filter((sale) => sale.commissionStatus === "pending").map((sale) => ({ currency: sale.currency, amount: sale.commissionAmount })))} />
+        <Summary label="Comisiones pendientes" value={moneyTotals(financialSales.filter((sale) => sale.commissionStatus === "pending").map((sale) => ({ currency: sale.currency, amount: sale.commissionAmount })))} />
         <Summary label="A pagar a proveedores" value={moneyTotals(providerPaymentRows.map((payment) => ({ currency: payment.currency, amount: payment.amount.toFixed(2) })))} />
       </section>
 
@@ -128,7 +129,7 @@ export default async function AdminReportPage({
       <h2 className="mb-3 text-xl font-semibold">Detalle de ventas</h2>
       {filteredSales.length === 0 ? <p className="text-muted-foreground">No hay ventas para mostrar.</p> : (
         <div className="overflow-x-auto rounded-lg border"><table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Venta</th><th className="px-4 py-2">Tour</th><th className="px-4 py-2">Cliente</th><th className="px-4 py-2">Contacto</th><th className="px-4 py-2">Empresa / tour</th><th className="px-4 py-2">Vendedor</th><th className="px-4 py-2">Ingreso</th><th className="px-4 py-2">Comisión</th><th className="px-4 py-2">Estado</th></tr></thead>
-          <tbody>{filteredSales.map((sale) => <tr key={sale.id} className="border-t"><td className="px-4 py-2">{sale.saleDate.toLocaleDateString()}</td><td className="px-4 py-2">{sale.tourDate ? new Date(`${sale.tourDate}T12:00:00`).toLocaleDateString() : "—"}</td><td className="px-4 py-2">{sale.customerName ?? "—"}</td><td className="px-4 py-2"><p>{sale.customerPhone ?? "—"}</p><p className="text-muted-foreground">{sale.customerEmail ?? ""}</p></td><td className="px-4 py-2"><p>{sale.activity.providerName}</p><p className="text-muted-foreground">{sale.activity.tourName}</p></td><td className="px-4 py-2">{sale.seller.fullName ?? sale.seller.email}</td><td className="px-4 py-2">{sale.currency === "USD" ? "$" : "₡"}{sale.grossAmount}</td><td className="px-4 py-2">{sale.currency === "USD" ? "$" : "₡"}{sale.commissionAmount}</td><td className="px-4 py-2"><Badge>{statusLabel[sale.commissionStatus]}</Badge></td></tr>)}</tbody>
+          <tbody>{filteredSales.map((sale) => <tr key={sale.id} className="border-t"><td className="px-4 py-2">{sale.saleDate.toLocaleDateString()}</td><td className="px-4 py-2">{sale.tourDate ? new Date(`${sale.tourDate}T12:00:00`).toLocaleDateString() : "—"}</td><td className="px-4 py-2">{sale.customerName ?? "—"}</td><td className="px-4 py-2"><p>{sale.customerPhone ?? "—"}</p><p className="text-muted-foreground">{sale.customerEmail ?? ""}</p></td><td className="px-4 py-2"><p>{sale.activity.providerName}</p><p className="text-muted-foreground">{sale.activity.tourName}</p></td><td className="px-4 py-2">{sale.seller.fullName ?? sale.seller.email}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? "—" : `${sale.currency === "USD" ? "$" : "₡"}${sale.grossAmount}`}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? "—" : `${sale.currency === "USD" ? "$" : "₡"}${sale.commissionAmount}`}</td><td className="px-4 py-2"><Badge>{sale.reservationStatus === "cancelled" ? "Anulada" : statusLabel[sale.commissionStatus]}</Badge>{sale.reservationStatus === "cancelled" && sale.cancellationReason ? <p className="mt-1 text-xs text-muted-foreground">{sale.cancellationReason}</p> : null}</td></tr>)}</tbody>
         </table></div>
       )}
     </>
