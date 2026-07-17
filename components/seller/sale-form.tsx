@@ -13,8 +13,9 @@ const paymentMethods = [
   { value: "tour_operator", label: "Tour operador" }
 ] as const;
 
-export function SaleForm({ activities }: { activities: Activity[] }) {
+export function SaleForm({ activities, actor = "seller" }: { activities: Activity[]; actor?: "seller" | "admin" }) {
   const router = useRouter();
+  const isAdminSale = actor === "admin";
   const [activityId, setActivityId] = useState(activities[0]?.id ?? "");
   const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState(activities[0]?.rackPrice ?? "");
@@ -30,13 +31,23 @@ export function SaleForm({ activities }: { activities: Activity[] }) {
 
   const selectedActivity = activities.find((activity) => activity.id === activityId);
   const estimatedCommission = useMemo(() => {
+    if (isAdminSale) return "0.00";
     if (!selectedActivity?.isOwnActivity) {
       const perUnit = calculateThirdPartySellerCommission(unitPrice, selectedActivity?.netPrice ?? "");
       return perUnit ? (Number(perUnit) * quantity).toFixed(2) : "0.00";
     }
     const perUnit = Number(selectedActivity?.commissionAmount ?? 0);
     return (perUnit * quantity).toFixed(2);
-  }, [selectedActivity, quantity, unitPrice]);
+  }, [isAdminSale, selectedActivity, quantity, unitPrice]);
+
+  const estimatedCenterMargin = useMemo(() => {
+    if (!isAdminSale || selectedActivity?.isOwnActivity) return null;
+    const providerCost = Number(selectedActivity?.netPrice ?? 0);
+    const customerPrice = Number(unitPrice);
+    return Number.isFinite(customerPrice) && customerPrice > providerCost
+      ? ((customerPrice - providerCost) * quantity).toFixed(2)
+      : "0.00";
+  }, [isAdminSale, quantity, selectedActivity, unitPrice]);
 
   function onSelectActivity(id: string) {
     setActivityId(id);
@@ -52,7 +63,7 @@ export function SaleForm({ activities }: { activities: Activity[] }) {
     setLoading(true);
     setError(null);
     setSuccess(false);
-    const res = await fetch("/api/seller/sales", {
+    const res = await fetch(isAdminSale ? "/api/admin/sales" : "/api/seller/sales", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ activityId, quantity, unitPrice, currency, paymentMethod, customerName, customerPhone, customerEmail, notes })
@@ -78,7 +89,7 @@ export function SaleForm({ activities }: { activities: Activity[] }) {
 
   return (
     <form onSubmit={onSubmit} className="mb-8 space-y-4 rounded-lg border bg-card p-6 shadow-sm">
-      <h2 className="text-xl font-semibold">Registrar venta</h2>
+      <h2 className="text-xl font-semibold">{isAdminSale ? "Registrar venta sin vendedor" : "Registrar venta"}</h2>
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Actividad</label>
@@ -151,12 +162,19 @@ export function SaleForm({ activities }: { activities: Activity[] }) {
         <label className="mb-1 block text-sm font-medium">Observaciones (opcional)</label>
         <Input value={notes} onChange={(event) => setNotes(event.target.value)} />
       </div>
-      <p className="text-sm text-muted-foreground">
-        Comisión estimada: <span className="font-medium text-foreground">{currency === "USD" ? "$" : "₡"}{estimatedCommission}</span>{" "}
-        (queda pendiente hasta que el admin la valide)
-      </p>
+      {isAdminSale ? (
+        <p className="text-sm text-muted-foreground">
+          No genera comisión de vendedor.
+          {estimatedCenterMargin ? <span className="ml-1">Margen estimado para el centro: <span className="font-medium text-foreground">{currency === "USD" ? "$" : "₡"}{estimatedCenterMargin}</span>.</span> : null}
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Comisión estimada: <span className="font-medium text-foreground">{currency === "USD" ? "$" : "₡"}{estimatedCommission}</span>{" "}
+          (queda pendiente hasta que el admin la valide)
+        </p>
+      )}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      {success ? <p className="text-sm text-primary">Venta registrada, pendiente de validación.</p> : null}
+      {success ? <p className="text-sm text-primary">{isAdminSale ? "Venta registrada sin comisión." : "Venta registrada, pendiente de validación."}</p> : null}
       <Button type="submit" disabled={loading}>
         {loading ? "Guardando..." : "Registrar venta"}
       </Button>

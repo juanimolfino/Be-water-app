@@ -10,6 +10,7 @@ import {
   transactions,
   users,
   type Currency,
+  type CommissionStatus,
   type JobType,
   type PaymentMethod,
   type Role
@@ -418,6 +419,8 @@ export async function createSale(input: {
   currency: Currency;
   paymentMethod: PaymentMethod;
   commissionPerUnit: number;
+  commissionStatus?: CommissionStatus;
+  validatedByUserId?: string;
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
@@ -438,6 +441,9 @@ export async function createSale(input: {
       paymentMethod: input.paymentMethod,
       grossAmount,
       commissionAmount,
+      commissionStatus: input.commissionStatus,
+      validatedByUserId: input.validatedByUserId,
+      validatedAt: input.validatedByUserId ? new Date() : null,
       customerName: input.customerName,
       customerPhone: input.customerPhone,
       customerEmail: input.customerEmail || null,

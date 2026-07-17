@@ -1,7 +1,8 @@
 import { SaleValidationActions } from "@/components/admin/sale-validation-row";
 import { Badge } from "@/components/ui/badge";
+import { SaleForm } from "@/components/seller/sale-form";
 import { getCurrentProfile } from "@/lib/auth/roles";
-import { listSalesForCenter } from "@/lib/db/queries";
+import { listActivitiesForCenter, listSalesForCenter } from "@/lib/db/queries";
 
 export const metadata = { title: "Ventas" };
 
@@ -14,9 +15,10 @@ const statusLabel: Record<string, string> = {
 export default async function AdminSalesPage() {
   const profile = await getCurrentProfile();
   const diveCenterId = profile.diveCenterId as string;
-  const [pending, all] = await Promise.all([
+  const [pending, all, activities] = await Promise.all([
     listSalesForCenter(diveCenterId, "pending"),
-    listSalesForCenter(diveCenterId)
+    listSalesForCenter(diveCenterId),
+    listActivitiesForCenter(diveCenterId)
   ]);
 
   return (
@@ -26,6 +28,8 @@ export default async function AdminSalesPage() {
         Validá a diario las comisiones cargadas por tus vendedores. Una vez aprobadas quedan como definitivas a
         pagar.
       </p>
+
+      <SaleForm activities={activities} actor="admin" />
 
       <h2 className="mb-3 text-xl font-semibold">Pendientes de validar ({pending.length})</h2>
       {pending.length === 0 ? (
