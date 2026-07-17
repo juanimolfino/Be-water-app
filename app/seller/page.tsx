@@ -1,5 +1,5 @@
-import { ActivityCard } from "@/components/activities/activity-card";
 import { Badge } from "@/components/ui/badge";
+import { ActivityCatalog } from "@/components/seller/activity-catalog";
 import { SaleForm } from "@/components/seller/sale-form";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import { listActivitiesForCenter, listSalesForSeller } from "@/lib/db/queries";
@@ -66,11 +66,7 @@ export default async function SellerHomePage() {
       )}
 
       <h2 className="mb-4 text-2xl font-semibold">Actividades de mi centro</h2>
-      <div className="grid gap-4 md:grid-cols-2">
-        {activityRows.map((activity) => (
-          <ActivityCard key={activity.id} activity={activity} />
-        ))}
-      </div>
+      <ActivityCatalog activities={activityRows} />
     </>
   );
 }
