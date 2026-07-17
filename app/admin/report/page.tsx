@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { CommissionStatusBadge } from "@/components/sales/commission-status-badge";
+import { ReservationDateCell } from "@/components/sales/reservation-date-cell";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import { getDiveCenterById, listActivitiesForCenter, listSalesForCenter } from "@/lib/db/queries";
 import { formatMoneyTotals } from "@/lib/reports/money";
 import { getCurrentPaymentPeriod } from "@/lib/reports/payment-period";
+import { tourStatusClasses } from "@/lib/sales/status";
 
 export const metadata = { title: "Período" };
 
@@ -122,8 +124,8 @@ export default async function AdminReportPage({
 
       <h2 className="mb-3 text-xl font-semibold">Detalle de ventas</h2>
       {filteredSales.length === 0 ? <p className="text-muted-foreground">No hay ventas para mostrar.</p> : (
-        <div className="overflow-x-auto rounded-lg border"><table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Venta</th><th className="px-4 py-2">Tour</th><th className="px-4 py-2">Cliente</th><th className="px-4 py-2">Contacto</th><th className="px-4 py-2">Empresa / tour</th><th className="px-4 py-2">Vendedor</th><th className="px-4 py-2">Ingreso</th><th className="px-4 py-2">Comisión</th><th className="px-4 py-2">Estado</th></tr></thead>
-          <tbody>{filteredSales.map((sale) => <tr key={sale.id} className="border-t"><td className="px-4 py-2">{sale.saleDate.toLocaleDateString()}</td><td className="px-4 py-2">{sale.tourDate ? new Date(`${sale.tourDate}T12:00:00`).toLocaleDateString() : "—"}</td><td className="px-4 py-2">{sale.customerName ?? "—"}</td><td className="px-4 py-2"><p>{sale.customerPhone ?? "—"}</p><p className="text-muted-foreground">{sale.customerEmail ?? ""}</p></td><td className="px-4 py-2"><p>{sale.activity.providerName}</p><p className="text-muted-foreground">{sale.activity.tourName}</p></td><td className="px-4 py-2">{sale.seller.fullName ?? sale.seller.email}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? "—" : `${sale.currency === "USD" ? "$" : "₡"}${sale.grossAmount}`}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? "—" : `${sale.currency === "USD" ? "$" : "₡"}${sale.commissionAmount}`}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? <Badge>Anulada</Badge> : <CommissionStatusBadge status={sale.commissionStatus} />}{sale.reservationStatus === "cancelled" && sale.cancellationReason ? <p className="mt-1 text-xs text-muted-foreground">{sale.cancellationReason}</p> : null}</td></tr>)}</tbody>
+        <div className="overflow-x-auto rounded-lg border"><table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Venta</th><th className="px-4 py-2">Tour</th><th className="px-4 py-2">Cliente</th><th className="px-4 py-2">Contacto</th><th className="px-4 py-2">Empresa / tour</th><th className="px-4 py-2">Vendedor</th><th className="px-4 py-2">Ingreso</th><th className="px-4 py-2">Comisión</th><th className="px-4 py-2">Estado de comisión</th></tr></thead>
+          <tbody>{filteredSales.map((sale) => <tr key={sale.id} className="border-t"><td className="px-4 py-2">{sale.saleDate.toLocaleDateString()}</td><td className="px-4 py-2"><ReservationDateCell tourDate={sale.tourDate} reservationStatus={sale.reservationStatus} /></td><td className="px-4 py-2">{sale.customerName ?? "—"}</td><td className="px-4 py-2"><p>{sale.customerPhone ?? "—"}</p><p className="text-muted-foreground">{sale.customerEmail ?? ""}</p></td><td className="px-4 py-2"><p>{sale.activity.providerName}</p><p className="text-muted-foreground">{sale.activity.tourName}</p></td><td className="px-4 py-2">{sale.seller.fullName ?? sale.seller.email}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? "—" : `${sale.currency === "USD" ? "$" : "₡"}${sale.grossAmount}`}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? "—" : `${sale.currency === "USD" ? "$" : "₡"}${sale.commissionAmount}`}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? <Badge className={tourStatusClasses.cancelled}>Anulada</Badge> : <CommissionStatusBadge status={sale.commissionStatus} />}{sale.reservationStatus === "cancelled" && sale.cancellationReason ? <p className="mt-1 text-xs text-muted-foreground">{sale.cancellationReason}</p> : null}</td></tr>)}</tbody>
         </table></div>
       )}
     </>

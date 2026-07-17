@@ -242,8 +242,9 @@ as sales history. A sale can only be cancelled once (`cancelSale` filters on
 
 ### 6.6 Sales table status display (`lib/sales/status.ts`, `components/sales/*`)
 
-Any table that lists `sales` rows (seller "Mis ventas", admin "Ventas" pending + historial) uses
-three shared pieces instead of inlining status/color logic — reuse these for any new sales table:
+Any table that lists `sales` rows (seller "Mis ventas", admin "Ventas" pending + historial,
+`/admin/report`'s "Detalle de ventas") uses these shared pieces instead of inlining status/color
+logic — reuse them for any new sales table:
 
 - `lib/sales/status.ts`: pure helpers, unit-tested in `lib/sales/status.test.ts`.
   `getTourStatus(tourDate, reservationStatus, now?)` derives a `TourStatus` —
