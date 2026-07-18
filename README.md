@@ -78,6 +78,9 @@ Mercado Pago Checkout Pro supports one-time credit pack purchases. See [docs/mer
 
 This app runs a role-based dive center manager on top of the boilerplate above.
 
+For product context, business rules, route/file map, and visual-change guardrails, read
+[docs/be-water-context.md](./docs/be-water-context.md) before changing the Be Water admin/seller UI.
+
 - **Superadmin**: fixed by the `SUPERADMIN_EMAIL` env var. Its first password login at `/login`
   creates the profile, lands on `/superadmin`, and creates each dive center together with
   its admin user (email + password) from there.
