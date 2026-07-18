@@ -807,6 +807,13 @@ export async function createAgendaNotice(input: {
   return notice;
 }
 
+export async function deleteAgendaNotice(input: { noticeId: string; diveCenterId: string }) {
+  return getDb()
+    .delete(agendaNotices)
+    .where(and(eq(agendaNotices.id, input.noticeId), eq(agendaNotices.diveCenterId, input.diveCenterId)))
+    .returning();
+}
+
 // --- Expenses ---------------------------------------------------------
 
 export async function listExpenseCategoriesForCenter(diveCenterId: string) {

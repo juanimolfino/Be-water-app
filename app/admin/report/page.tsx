@@ -222,16 +222,18 @@ function ProviderPaymentsTable({
     <section>
       <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
       <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Fecha</th><th className="px-4 py-2">Proveedor / tour</th><th className="px-4 py-2">Unidades</th><th className="px-4 py-2">A pagar</th><th className="px-4 py-2">Estado</th><th className="px-4 py-2">Acción</th></tr></thead>
+        <table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Fecha</th><th className="px-4 py-2">Proveedor / tour</th><th className="px-4 py-2">Unidades</th><th className="px-4 py-2">A pagar</th><th className="px-4 py-2">Cobro al cliente</th><th className="px-4 py-2">Estado</th><th className="px-4 py-2">Acción</th></tr></thead>
           <tbody>{rows.map((payment) => {
             const cancelled = payment.sale.reservationStatus === "cancelled";
             const paid = payment.sale.providerPaymentStatus === "paid";
+            const customerPaid = payment.sale.paymentStatus === "paid";
             return (
               <tr key={payment.sale.id} className="border-t">
                 <td className="px-4 py-2">{payment.sale.tourDate ? new Date(`${payment.sale.tourDate}T12:00:00`).toLocaleDateString() : "—"}</td>
                 <td className="px-4 py-2"><p>{payment.provider}</p><p className="text-muted-foreground">{payment.tourName}</p></td>
                 <td className="px-4 py-2">{payment.sale.quantity}</td>
                 <td className="px-4 py-2">{payment.currency === "USD" ? "$" : "₡"}{payment.amount.toFixed(2)}</td>
+                <td className="px-4 py-2">{cancelled ? "—" : customerPaid ? <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700"><CheckCircle2 className="mr-1 h-3 w-3" /> Cobrado</Badge> : <Badge className="border-red-200 bg-red-50 text-red-700">Sin cobrar</Badge>}</td>
                 <td className="px-4 py-2">
                   {cancelled ? <Badge className={tourStatusClasses.cancelled}>Cancelado</Badge> : paid ? <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700"><CheckCircle2 className="mr-1 h-3 w-3" /> Pagado</Badge> : <Badge className="border-amber-200 bg-amber-50 text-amber-700">Pendiente</Badge>}
                   {paid && payment.sale.providerPaymentMethod ? <p className="mt-1 text-xs text-muted-foreground">{payment.sale.providerPaymentMethod === "cash" ? "Efectivo" : "Transferencia"}</p> : null}

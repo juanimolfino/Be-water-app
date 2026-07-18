@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Trash2, XCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResponsibleSelect } from "@/components/agenda/responsible-select";
 import { MarkPaidButton } from "@/components/sales/mark-paid-button";
@@ -92,6 +92,7 @@ export function WeeklyAgenda({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+  const [deletingNoticeId, setDeletingNoticeId] = useState<string | null>(null);
   const start = startOfWeek(parseDate(week));
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(start);
@@ -133,6 +134,21 @@ export function WeeklyAgenda({
     setDeletingItemId(null);
     if (!response.ok) {
       setError(body.error ?? "No se pudo quitar la venta por fuera.");
+      return;
+    }
+    router.refresh();
+  }
+
+  async function deleteNotice(notice: AgendaNotice) {
+    if (!confirm("¿Quitar este aviso de la agenda?")) return;
+
+    setDeletingNoticeId(notice.id);
+    setError(null);
+    const response = await fetch(`/api/admin/agenda/notices/${notice.id}`, { method: "DELETE" });
+    const body = (await response.json().catch(() => ({}))) as { error?: string };
+    setDeletingNoticeId(null);
+    if (!response.ok) {
+      setError(body.error ?? "No se pudo quitar el aviso.");
       return;
     }
     router.refresh();
@@ -212,7 +228,21 @@ export function WeeklyAgenda({
                   <div className="space-y-2 pt-2">
                     {dayNotices.map((notice) => (
                       <div key={notice.id} className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-950">
-                        <p>{notice.message}</p>
+                        <div className="flex items-start justify-between gap-2">
+                          <p>{notice.message}</p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={deletingNoticeId === notice.id}
+                            onClick={() => deleteNotice(notice)}
+                            title="Quitar aviso"
+                            aria-label="Quitar aviso"
+                            className="h-7 w-7 shrink-0 p-0 text-amber-950 hover:bg-amber-100"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                         {notice.createdBy ? <p className="mt-1 text-[10px] text-amber-800">{notice.createdBy.fullName ?? notice.createdBy.email}</p> : null}
                       </div>
                     ))}
@@ -307,7 +337,7 @@ function ReservationBlock({
     <article className={`border-l-4 p-2 text-xs ${saleAgendaStatusClasses[agendaStatus]}`}>
       <div className="flex items-start justify-between gap-2">
         <p className="font-semibold">{entry.activity.tourName}</p>
-        {!cancelled ? <Button type="button" variant="ghost" size="sm" onClick={onCancel} title="Anular reserva" aria-label="Anular reserva"><XCircle className="h-4 w-4" /></Button> : null}
+        {!cancelled ? <Button type="button" variant="ghost" size="sm" onClick={onCancel} title="Anular reserva" aria-label="Anular reserva" className="h-7 w-7 shrink-0 p-0"><Trash2 className="h-4 w-4" /></Button> : null}
       </div>
       <p>{entry.quantity} {entry.quantity === 1 ? "persona" : "personas"} · {entry.activity.isOwnActivity ? "Propia" : "Tercero"}</p>
       <p className="text-muted-foreground">{entry.customerName ?? "Cliente sin nombre"}{entry.customerPhone ? ` · ${entry.customerPhone}` : ""}</p>
