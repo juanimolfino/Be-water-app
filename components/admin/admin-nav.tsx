@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -16,7 +17,7 @@ const links = [
   { href: "/admin/settings", label: "Configuración" }
 ];
 
-export function AdminNav() {
+export function AdminNav({ pendingSalesCount = 0 }: { pendingSalesCount?: number }) {
   const pathname = usePathname();
 
   return (
@@ -33,7 +34,12 @@ export function AdminNav() {
               isActive && "bg-primary/10 text-primary ring-1 ring-primary/20"
             )}
           >
-            {link.label}
+            <span className="inline-flex items-center gap-1.5">
+              {link.label}
+              {link.href === "/admin/sales" && pendingSalesCount > 0 ? (
+                <AlertCircle className="h-3.5 w-3.5 text-amber-600" aria-label={`${pendingSalesCount} ventas pendientes`} />
+              ) : null}
+            </span>
           </Link>
         );
       })}

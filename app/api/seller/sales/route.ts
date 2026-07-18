@@ -7,9 +7,9 @@ import { createSale, getActivityForCenter } from "@/lib/db/queries";
 const schema = z.object({
   activityId: z.string().uuid(),
   quantity: z.coerce.number().int().min(1),
-  unitPrice: z.coerce.number().min(0),
+  unitPrice: z.coerce.number().positive(),
   currency: z.enum(["CRC", "USD"]),
-  paymentMethod: z.enum(["cash", "card", "tour_operator"]),
+  paymentMethod: z.enum(["cash", "card", "tour_operator", "via_link", "referral"]),
   paymentStatus: z.enum(["paid", "unpaid"]).default("paid"),
   tourDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha del tour es obligatoria"),
   customerName: z.string().trim().min(1, "El nombre del cliente es obligatorio"),
@@ -36,12 +36,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "La actividad no existe en tu centro" }, { status: 404 });
   }
 
-  const unitPrice = calculateSaleUnitPrice(activity.rackPrice, parsed.data.paymentMethod);
+  const unitPrice = parsed.data.paymentMethod === "referral"
+    ? parsed.data.unitPrice.toFixed(2)
+    : calculateSaleUnitPrice(activity.rackPrice, parsed.data.paymentMethod);
   if (!unitPrice) return NextResponse.json({ error: "La actividad no tiene un precio válido." }, { status: 400 });
 
-  const commissionPerUnit = activity.isOwnActivity
-    ? Number(activity.commissionAmount ?? 0)
-    : Number(calculateThirdPartySellerCommission(unitPrice, activity.netPrice ?? ""));
+  const thirdPartyCommission = calculateThirdPartySellerCommission(unitPrice, activity.netPrice ?? "");
+  const commissionPerUnit = activity.isOwnActivity ? Number(activity.commissionAmount ?? 0) : Number(thirdPartyCommission);
   if (!Number.isFinite(commissionPerUnit)) {
     return NextResponse.json({ error: "El precio cobrado debe ser mayor al costo del proveedor." }, { status: 400 });
   }

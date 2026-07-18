@@ -25,7 +25,7 @@ export const transactionTypeEnum = pgEnum("transaction_type", [
 
 export const roleEnum = pgEnum("role", ["superadmin", "admin", "seller"]);
 export const currencyEnum = pgEnum("currency", ["CRC", "USD"]);
-export const paymentMethodEnum = pgEnum("payment_method", ["cash", "card", "tour_operator"]);
+export const paymentMethodEnum = pgEnum("payment_method", ["cash", "card", "tour_operator", "via_link", "referral"]);
 export const commissionStatusEnum = pgEnum("commission_status", ["pending", "approved", "rejected"]);
 export const reservationStatusEnum = pgEnum("reservation_status", ["active", "cancelled"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["paid", "unpaid"]);

@@ -11,7 +11,8 @@ import type { Activity } from "@/lib/db/schema";
 const paymentMethods = [
   { value: "cash", label: "Efectivo" },
   { value: "card", label: "Tarjeta (+13%)" },
-  { value: "tour_operator", label: "Tour operador" }
+  { value: "via_link", label: "Vía link (+3%)" },
+  { value: "referral", label: "Referenciado" }
 ] as const;
 
 export function SaleForm({ activities, actor = "seller", collapsible = false }: { activities: Activity[]; actor?: "seller" | "admin"; collapsible?: boolean }) {
@@ -34,6 +35,7 @@ export function SaleForm({ activities, actor = "seller", collapsible = false }: 
   const [success, setSuccess] = useState(false);
 
   const selectedActivity = activities.find((activity) => activity.id === activityId);
+  const isReferral = paymentMethod === "referral";
   const estimatedCommission = useMemo(() => {
     if (isAdminSale) return "0.00";
     if (!selectedActivity?.isOwnActivity) {
@@ -57,14 +59,14 @@ export function SaleForm({ activities, actor = "seller", collapsible = false }: 
     setActivityId(id);
     const activity = activities.find((item) => item.id === id);
     if (activity) {
-      setUnitPrice(calculateSaleUnitPrice(activity.rackPrice, paymentMethod) ?? "");
+      setUnitPrice(paymentMethod === "referral" ? "" : calculateSaleUnitPrice(activity.rackPrice, paymentMethod) ?? "");
       setCurrency(activity.currency);
     }
   }
 
   function onPaymentMethodChange(method: (typeof paymentMethods)[number]["value"]) {
     setPaymentMethod(method);
-    setUnitPrice(calculateSaleUnitPrice(selectedActivity?.rackPrice ?? null, method) ?? "");
+    setUnitPrice(method === "referral" ? "" : calculateSaleUnitPrice(selectedActivity?.rackPrice ?? null, method) ?? "");
   }
 
   async function onSubmit(event: React.FormEvent) {
@@ -157,7 +159,14 @@ export function SaleForm({ activities, actor = "seller", collapsible = false }: 
         <div>
           <label className="mb-1 block text-sm font-medium">Precio unitario</label>
           <div className="flex gap-2">
-            <Input inputMode="decimal" required readOnly value={unitPrice} />
+            <Input
+              inputMode="decimal"
+              required
+              readOnly={!isReferral}
+              value={unitPrice}
+              onChange={(event) => setUnitPrice(event.target.value)}
+              placeholder={isReferral ? "Monto cobrado" : undefined}
+            />
             <select
               className="flex h-10 rounded-md border bg-background px-2 text-sm"
               value={currency}

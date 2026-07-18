@@ -17,5 +17,7 @@ describe("calculateSaleUnitPrice", () => {
     expect(calculateSaleUnitPrice("100", "cash")).toBe("100.00");
     expect(calculateSaleUnitPrice("100", "tour_operator")).toBe("100.00");
     expect(calculateSaleUnitPrice("100", "card")).toBe("113.00");
+    expect(calculateSaleUnitPrice("100", "via_link")).toBe("103.00");
+    expect(calculateSaleUnitPrice("100", "referral")).toBeNull();
   });
 });

@@ -9,7 +9,7 @@ const schema = z.object({
   quantity: z.coerce.number().int().min(1),
   unitPrice: z.coerce.number().positive(),
   currency: z.enum(["CRC", "USD"]),
-  paymentMethod: z.enum(["cash", "card", "tour_operator"]),
+  paymentMethod: z.enum(["cash", "card", "tour_operator", "via_link", "referral"]),
   paymentStatus: z.enum(["paid", "unpaid"]).default("paid"),
   tourDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha del tour es obligatoria"),
   customerName: z.string().trim().min(1, "El nombre del cliente es obligatorio"),
@@ -31,7 +31,9 @@ export async function POST(request: Request) {
 
   const activity = await getActivityForCenter(parsed.data.activityId, profile.diveCenterId);
   if (!activity) return NextResponse.json({ error: "La actividad no existe en tu centro" }, { status: 404 });
-  const unitPrice = calculateSaleUnitPrice(activity.rackPrice, parsed.data.paymentMethod);
+  const unitPrice = parsed.data.paymentMethod === "referral"
+    ? parsed.data.unitPrice.toFixed(2)
+    : calculateSaleUnitPrice(activity.rackPrice, parsed.data.paymentMethod);
   if (!unitPrice) return NextResponse.json({ error: "La actividad no tiene un precio válido." }, { status: 400 });
   if (!activity.isOwnActivity && Number(unitPrice) <= Number(activity.netPrice ?? 0)) {
     return NextResponse.json({ error: "El precio cobrado debe ser mayor al costo del proveedor." }, { status: 400 });
