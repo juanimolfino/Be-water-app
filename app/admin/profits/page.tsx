@@ -108,7 +108,7 @@ export default async function AdminProfitsPage({
   return (
     <>
       <h1 className="mb-1 text-3xl font-semibold">Ganancias</h1>
-      <p className="mb-6 text-muted-foreground">Ingreso bruto menos incentivos de vendedores, pagos a proveedores y gastos del período seleccionado.</p>
+      <p className="mb-6 text-muted-foreground">Ingreso bruto menos incentivos, pagos a proveedores y gastos del período seleccionado.</p>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium text-muted-foreground">Filtro rápido:</span>

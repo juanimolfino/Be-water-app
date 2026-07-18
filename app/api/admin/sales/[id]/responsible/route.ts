@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireApiProfile } from "@/lib/auth/api";
 import { assignSaleResponsible } from "@/lib/db/queries";
 
-const schema = z.object({ responsibleUserId: z.string().uuid().optional().or(z.literal("")) });
+const schema = z.object({ responsibleStaffId: z.string().uuid().optional().or(z.literal("")) });
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const profile = await requireApiProfile("admin");
@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const result = await assignSaleResponsible({
     saleId: id,
     diveCenterId: profile.diveCenterId,
-    responsibleUserId: parsed.data.responsibleUserId || null
+    responsibleStaffId: parsed.data.responsibleStaffId || null
   });
   if (!result.length) return NextResponse.json({ error: "La reserva o el responsable no existen." }, { status: 404 });
   return NextResponse.json({ sale: result[0] });

@@ -20,7 +20,7 @@ export default async function AdminHomePage() {
       <p className="mt-1 text-muted-foreground">{profile.email}</p>
       <section className="mt-6 grid gap-4 md:grid-cols-3">
         <StatCard title="Actividades cargadas" value={activityRows.length} href="/admin/activities" />
-        <StatCard title="Vendedores" value={sellerRows.length} href="/admin/sellers" />
+        <StatCard title="Empleados" value={sellerRows.length} href="/admin/sellers" />
         <StatCard title="Ventas por validar" value={pendingSales.length} href="/admin/sales" />
       </section>
     </>

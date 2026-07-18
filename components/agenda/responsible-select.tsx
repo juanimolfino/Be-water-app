@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 
 type Responsible = {
   id: string;
-  fullName: string | null;
-  email: string;
+  fullName: string;
 };
 
 export function ResponsibleSelect({
@@ -23,12 +22,12 @@ export function ResponsibleSelect({
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
-  async function onChange(responsibleUserId: string) {
+  async function onChange(responsibleStaffId: string) {
     setSaving(true);
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ responsibleUserId })
+      body: JSON.stringify({ responsibleStaffId })
     });
     setSaving(false);
     if (response.ok) router.refresh();
@@ -46,7 +45,7 @@ export function ResponsibleSelect({
         <option value="">Sin asignar</option>
         {responsibles.map((responsible) => (
           <option key={responsible.id} value={responsible.id}>
-            {responsible.fullName ?? responsible.email}
+            {responsible.fullName}
           </option>
         ))}
       </select>

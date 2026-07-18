@@ -31,6 +31,8 @@ export const reservationStatusEnum = pgEnum("reservation_status", ["active", "ca
 export const paymentStatusEnum = pgEnum("payment_status", ["paid", "unpaid"]);
 export const providerPaymentStatusEnum = pgEnum("provider_payment_status", ["pending", "paid"]);
 export const expensePaymentMethodEnum = pgEnum("expense_payment_method", ["cash", "bank_transfer"]);
+export const staffRoleEnum = pgEnum("staff_role", ["instructor", "dm"]);
+export const staffAffiliationEnum = pgEnum("staff_affiliation", ["be_water", "freelance"]);
 
 export const diveCenters = pgTable("dive_centers", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -116,6 +118,7 @@ export const sales = pgTable("sales", {
   cancelledByUserId: uuid("cancelled_by_user_id").references(() => users.id, { onDelete: "set null" }),
   cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   assignedToUserId: uuid("assigned_to_user_id").references(() => users.id, { onDelete: "set null" }),
+  assignedStaffId: uuid("assigned_staff_id").references(() => staffMembers.id, { onDelete: "set null" }),
   providerPaymentStatus: providerPaymentStatusEnum("provider_payment_status").default("pending").notNull(),
   providerPaymentMethod: expensePaymentMethodEnum("provider_payment_method"),
   providerPaidByUserId: uuid("provider_paid_by_user_id").references(() => users.id, { onDelete: "set null" }),
@@ -131,9 +134,24 @@ export const agendaItems = pgTable("agenda_items", {
   diveCenterId: uuid("dive_center_id").references(() => diveCenters.id, { onDelete: "cascade" }).notNull(),
   itemDate: date("item_date").notNull(),
   title: text("title").notNull(),
+  activityId: uuid("activity_id").references(() => activities.id, { onDelete: "set null" }),
   quantity: integer("quantity"),
   responsibleUserId: uuid("responsible_user_id").references(() => users.id, { onDelete: "set null" }),
+  responsibleStaffId: uuid("responsible_staff_id").references(() => staffMembers.id, { onDelete: "set null" }),
   notes: text("notes"),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+});
+
+export const staffMembers = pgTable("staff_members", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  diveCenterId: uuid("dive_center_id").references(() => diveCenters.id, { onDelete: "cascade" }).notNull(),
+  fullName: text("full_name").notNull(),
+  phone: text("phone"),
+  role: staffRoleEnum("role").notNull(),
+  affiliation: staffAffiliationEnum("affiliation").notNull(),
+  active: boolean("active").default(true).notNull(),
   createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
@@ -230,6 +248,7 @@ export const userRelations = relations(users, ({ one, many }) => ({
 
 export const diveCenterRelations = relations(diveCenters, ({ many }) => ({
   members: many(users),
+  staffMembers: many(staffMembers),
   activities: many(activities),
   sales: many(sales),
   agendaItems: many(agendaItems),
@@ -248,14 +267,22 @@ export const saleRelations = relations(sales, ({ one }) => ({
   activity: one(activities, { fields: [sales.activityId], references: [activities.id] }),
   seller: one(users, { fields: [sales.sellerId], references: [users.id] }),
   assignedTo: one(users, { fields: [sales.assignedToUserId], references: [users.id] }),
+  assignedStaff: one(staffMembers, { fields: [sales.assignedStaffId], references: [staffMembers.id] }),
   providerPaidBy: one(users, { fields: [sales.providerPaidByUserId], references: [users.id] }),
   validatedBy: one(users, { fields: [sales.validatedByUserId], references: [users.id] })
 }));
 
 export const agendaItemRelations = relations(agendaItems, ({ one }) => ({
   diveCenter: one(diveCenters, { fields: [agendaItems.diveCenterId], references: [diveCenters.id] }),
+  activity: one(activities, { fields: [agendaItems.activityId], references: [activities.id] }),
   responsible: one(users, { fields: [agendaItems.responsibleUserId], references: [users.id] }),
+  responsibleStaff: one(staffMembers, { fields: [agendaItems.responsibleStaffId], references: [staffMembers.id] }),
   createdBy: one(users, { fields: [agendaItems.createdByUserId], references: [users.id] })
+}));
+
+export const staffMemberRelations = relations(staffMembers, ({ one }) => ({
+  diveCenter: one(diveCenters, { fields: [staffMembers.diveCenterId], references: [diveCenters.id] }),
+  createdBy: one(users, { fields: [staffMembers.createdByUserId], references: [users.id] })
 }));
 
 export const agendaNoticeRelations = relations(agendaNotices, ({ one }) => ({
@@ -293,3 +320,6 @@ export type Expense = typeof expenses.$inferSelect;
 export type ExpensePaymentMethod = typeof expensePaymentMethodEnum.enumValues[number];
 export type AgendaItem = typeof agendaItems.$inferSelect;
 export type AgendaNotice = typeof agendaNotices.$inferSelect;
+export type StaffMember = typeof staffMembers.$inferSelect;
+export type StaffRole = typeof staffRoleEnum.enumValues[number];
+export type StaffAffiliation = typeof staffAffiliationEnum.enumValues[number];

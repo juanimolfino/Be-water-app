@@ -19,8 +19,8 @@ export type AgendaEntry = {
   reservationStatus: "active" | "cancelled";
   paymentStatus: "paid" | "unpaid";
   cancellationReason: string | null;
-  assignedToUserId?: string | null;
-  assignedTo?: { fullName: string | null; email: string } | null;
+  assignedStaffId?: string | null;
+  assignedStaff?: { fullName: string; role: "instructor" | "dm"; affiliation: "be_water" | "freelance" } | null;
   activity: { tourName: string; providerName: string; isOwnActivity: boolean };
 };
 
@@ -28,9 +28,10 @@ export type AgendaManualItem = {
   id: string;
   itemDate: string;
   title: string;
+  activity?: { tourName: string; providerName: string } | null;
   quantity: number | null;
-  responsibleUserId: string | null;
-  responsible: { fullName: string | null; email: string } | null;
+  responsibleStaffId: string | null;
+  responsibleStaff: { fullName: string; role: "instructor" | "dm"; affiliation: "be_water" | "freelance" } | null;
   notes: string | null;
 };
 
@@ -43,8 +44,7 @@ export type AgendaNotice = {
 
 type Responsible = {
   id: string;
-  fullName: string | null;
-  email: string;
+  fullName: string;
 };
 
 function parseDate(value: string | undefined) {
@@ -144,16 +144,6 @@ export function WeeklyAgenda({
                 <p className="text-xs font-semibold uppercase text-muted-foreground">{day.toLocaleDateString(undefined, { weekday: "short" })}</p>
                 <p className={today ? "grid h-8 w-8 place-items-center rounded-full bg-primary text-sm font-semibold text-primary-foreground" : "text-2xl font-semibold"}>{day.getDate()}</p>
               </div>
-              {dayNotices.length > 0 ? (
-                <div className="mb-3 space-y-2">
-                  {dayNotices.map((notice) => (
-                    <div key={notice.id} className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-950">
-                      <p>{notice.message}</p>
-                      {notice.createdBy ? <p className="mt-1 text-[10px] text-amber-800">{notice.createdBy.fullName ?? notice.createdBy.email}</p> : null}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
               <div className="space-y-2">
                 {dayItems.length > 0 ? (
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Fuera de ventas</p>
@@ -198,6 +188,16 @@ export function WeeklyAgenda({
                     onCancel={() => { setCancelling(entry); setReason(""); setError(null); }}
                   />
                 ))}
+                {dayNotices.length > 0 ? (
+                  <div className="space-y-2 pt-2">
+                    {dayNotices.map((notice) => (
+                      <div key={notice.id} className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-950">
+                        <p>{notice.message}</p>
+                        {notice.createdBy ? <p className="mt-1 text-[10px] text-amber-800">{notice.createdBy.fullName ?? notice.createdBy.email}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </section>
           );
@@ -235,11 +235,11 @@ function ManualBlock({
     <article className="border-l-4 border-sky-500 bg-sky-50 p-2 text-xs text-sky-950">
       <p className="font-semibold">{item.title}</p>
       {item.quantity ? <p>{item.quantity} {item.quantity === 1 ? "persona" : "personas"}</p> : null}
-      {item.responsible ? <p className="text-sky-800">Responsable: {item.responsible.fullName ?? item.responsible.email}</p> : null}
+      {item.responsibleStaff ? <p className="text-sky-800">Responsable: {item.responsibleStaff.fullName}</p> : null}
       {item.notes ? <p className="mt-1 text-sky-800">{item.notes}</p> : null}
       {canAssignResponsible ? (
         <ResponsibleSelect
-          value={item.responsibleUserId}
+          value={item.responsibleStaffId}
           responsibles={responsibles}
           endpoint={`/api/admin/agenda/items/${item.id}/responsible`}
         />
@@ -271,13 +271,13 @@ function ReservationBlock({
       </div>
       <p>{entry.quantity} {entry.quantity === 1 ? "persona" : "personas"} · {entry.activity.isOwnActivity ? "Propia" : "Tercero"}</p>
       <p className="text-muted-foreground">{entry.customerName ?? "Cliente sin nombre"}{entry.customerPhone ? ` · ${entry.customerPhone}` : ""}</p>
-      {entry.assignedTo ? <p className="text-muted-foreground">Responsable: {entry.assignedTo.fullName ?? entry.assignedTo.email}</p> : null}
+      {entry.assignedStaff ? <p className="text-muted-foreground">Responsable: {entry.assignedStaff.fullName}</p> : null}
       <p className="mt-1 font-medium">{saleAgendaStatusLabel[agendaStatus]}</p>
       {agendaStatus === "unpaid" ? <MarkPaidButton saleId={entry.id} endpoint={endpoint} /> : null}
       {cancelled && entry.cancellationReason ? <p className="mt-1 text-muted-foreground">{entry.cancellationReason}</p> : null}
       {canAssignResponsible ? (
         <ResponsibleSelect
-          value={entry.assignedToUserId ?? null}
+          value={entry.assignedStaffId ?? null}
           responsibles={responsibles}
           endpoint={`/api/admin/sales/${entry.id}/responsible`}
           disabled={cancelled}

@@ -9,17 +9,24 @@ import { Textarea } from "@/components/ui/textarea";
 
 type Responsible = {
   id: string;
-  fullName: string | null;
-  email: string;
+  fullName: string;
+};
+
+type ActivityOption = {
+  id: string;
+  providerName: string;
+  tourName: string;
 };
 
 export function AgendaControls({
   responsibles,
+  activities = [],
   canCreateItem,
   noticeEndpoint,
   itemEndpoint
 }: {
   responsibles: Responsible[];
+  activities?: ActivityOption[];
   canCreateItem: boolean;
   noticeEndpoint: string;
   itemEndpoint?: string;
@@ -54,9 +61,9 @@ export function AgendaControls({
     const form = new FormData(event.currentTarget);
     const ok = await submitJson(itemEndpoint, {
       itemDate: form.get("itemDate"),
-      title: form.get("title"),
+      activityId: form.get("activityId"),
       quantity: form.get("quantity"),
-      responsibleUserId: form.get("responsibleUserId"),
+      responsibleStaffId: form.get("responsibleStaffId"),
       notes: form.get("notes")
     });
     if (ok) {
@@ -101,7 +108,14 @@ export function AgendaControls({
           </label>
           <label className="text-sm font-medium md:col-span-2">
             Qué se agrega
-            <Input className="mt-1" required name="title" placeholder="Ej: Grupo privado, mantenimiento, curso externo" />
+            <select className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm" required name="activityId" defaultValue="">
+              <option value="" disabled>Elegí una actividad</option>
+              {activities.map((activity) => (
+                <option key={activity.id} value={activity.id}>
+                  {activity.providerName} · {activity.tourName}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="text-sm font-medium">
             Personas
@@ -109,11 +123,11 @@ export function AgendaControls({
           </label>
           <label className="text-sm font-medium md:col-span-2">
             Responsable
-            <select className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm" name="responsibleUserId">
+            <select className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm" name="responsibleStaffId">
               <option value="">Sin asignar</option>
               {responsibles.map((responsible) => (
                 <option key={responsible.id} value={responsible.id}>
-                  {responsible.fullName ?? responsible.email}
+                  {responsible.fullName}
                 </option>
               ))}
             </select>

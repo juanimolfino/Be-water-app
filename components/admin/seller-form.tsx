@@ -38,7 +38,7 @@ export function SellerForm() {
 
   if (!open) {
     return (
-      <Button onClick={() => setOpen(true)} className="mb-6">
+      <Button onClick={() => setOpen(true)} className="mb-6" variant="outline">
         + Crear vendedor
       </Button>
     );
