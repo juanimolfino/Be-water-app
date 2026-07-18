@@ -27,7 +27,7 @@ export default async function AdminReportPage({
   const period = getCurrentPaymentPeriod(center?.commissionPaymentDays ?? [1, 15]);
   const pastPeriods = getPastPaymentPeriods(center?.commissionPaymentDays ?? [1, 15], 6);
   const from = params.from ?? dateInputValue(period.start);
-  const to = params.to ?? dateInputValue(new Date());
+  const to = params.to ?? dateInputValue(period.nextPaymentDate);
   const fromDate = parseDate(from);
   const toDate = parseDate(to, true);
   const providers = [...new Set(activities.map((activity) => activity.providerName))].sort();

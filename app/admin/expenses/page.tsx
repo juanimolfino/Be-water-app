@@ -41,8 +41,8 @@ export default async function AdminExpensesPage({
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const from = params.from;
-  const to = params.to;
+  const from = params.from ?? dateInputValue(period.start);
+  const to = params.to ?? dateInputValue(period.nextPaymentDate);
   const limit = Math.max(PAGE_SIZE, Number(params.limit) || PAGE_SIZE);
 
   const filtered = await listExpensesForCenter({
@@ -61,14 +61,14 @@ export default async function AdminExpensesPage({
   const isCurrentMonth = from === dateInputValue(monthStart) && to === dateInputValue(now);
 
   const periodLabel =
-    from || to
+    params.from || params.to
       ? `${from ? new Date(`${from}T12:00:00`).toLocaleDateString() : "…"} – ${to ? new Date(`${to}T12:00:00`).toLocaleDateString() : "…"}`
-      : `Período actual (${period.start.toLocaleDateString()} – ${now.toLocaleDateString()})`;
+      : `Período actual (${period.start.toLocaleDateString()} – ${period.nextPaymentDate.toLocaleDateString()})`;
 
   function loadMoreHref() {
     const query = new URLSearchParams();
-    if (from) query.set("from", from);
-    if (to) query.set("to", to);
+    if (params.from) query.set("from", params.from);
+    if (params.to) query.set("to", params.to);
     if (params.category) query.set("category", params.category);
     if (params.provider) query.set("provider", params.provider);
     query.set("limit", String(limit + PAGE_SIZE));

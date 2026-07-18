@@ -72,7 +72,7 @@ export default async function AdminProfitsPage({
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const from = params.from ?? dateInputValue(currentPeriod.start);
-  const to = params.to ?? dateInputValue(now);
+  const to = params.to ?? dateInputValue(currentPeriod.nextPaymentDate);
   const fromDate = parseDate(from);
   const toDate = parseDate(to, true);
   const expenses = await listExpensesForCenter({
@@ -107,7 +107,9 @@ export default async function AdminProfitsPage({
   })));
   const isCurrentPeriod = !params.from && !params.to;
   const isCurrentMonth = from === dateInputValue(monthStart) && to === dateInputValue(now);
-  const periodLabel = `${new Date(`${from}T12:00:00`).toLocaleDateString()} – ${new Date(`${to}T12:00:00`).toLocaleDateString()}`;
+  const periodLabel = isCurrentPeriod
+    ? `Período actual (${currentPeriod.start.toLocaleDateString()} – ${currentPeriod.nextPaymentDate.toLocaleDateString()})`
+    : `${new Date(`${from}T12:00:00`).toLocaleDateString()} – ${new Date(`${to}T12:00:00`).toLocaleDateString()}`;
 
   return (
     <>
@@ -136,12 +138,12 @@ export default async function AdminProfitsPage({
       <p className="mb-3 text-sm text-muted-foreground">Período analizado: {periodLabel}</p>
       <section className="mb-8 rounded-lg border bg-card p-5">
         <p className="mb-4 text-sm font-medium text-muted-foreground">Cálculo de ganancia</p>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4">
           <Summary label="Ingreso bruto" value={formatMoneyTotals(incomeRows)} />
-          <Summary label="− Incentivos vendedores" value={formatMoneyTotals(sellerIncentiveRows)} />
-          <Summary label="− Proveedores terceros" value={formatMoneyTotals(providerRows)} />
-          <Summary label="− Gastos" value={formatMoneyTotals(expenseRows)} />
-          <Summary label="= Ganancia neta" value={formatMoneyTotals(profitRows(incomeRows, [sellerIncentiveRows, providerRows, expenseRows]))} highlight />
+          <Summary label="Incentivos vendedores" value={formatMoneyTotals(sellerIncentiveRows)} prefix="−" />
+          <Summary label="Proveedores terceros" value={formatMoneyTotals(providerRows)} prefix="−" />
+          <Summary label="Gastos" value={formatMoneyTotals(expenseRows)} prefix="−" />
+          <Summary label="Ganancia neta" value={formatMoneyTotals(profitRows(incomeRows, [sellerIncentiveRows, providerRows, expenseRows]))} prefix="=" highlight />
         </div>
       </section>
 
@@ -153,8 +155,26 @@ export default async function AdminProfitsPage({
   );
 }
 
-function Summary({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
-  return <div className={`rounded-lg border bg-card p-5 ${highlight ? "border-primary" : ""}`}><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-semibold">{value}</p></div>;
+function Summary({
+  label,
+  value,
+  prefix,
+  highlight = false
+}: {
+  label: string;
+  value: string;
+  prefix?: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div className={`rounded-lg border bg-card p-5 ${highlight ? "border-primary" : ""}`}>
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        {prefix ? <span className="text-base font-semibold text-foreground">{prefix}</span> : null}
+        <span>{label}</span>
+      </p>
+      <p className="mt-2 text-2xl font-semibold">{value}</p>
+    </div>
+  );
 }
 
 function EmptyChart({ title }: { title: string }) {

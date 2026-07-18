@@ -1,6 +1,9 @@
 /** Formats a Date as the "YYYY-MM-DD" value a `<input type="date">` expects. */
 export function dateInputValue(date: Date) {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 /** Parses a "YYYY-MM-DD" input value into a local Date, or null if invalid. */

@@ -30,8 +30,8 @@ export function PieBreakdown({ title, currency, items }: { title: string; curren
       {total === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">No hay movimientos para mostrar.</p>
       ) : (
-        <div className="mt-4 grid gap-5 sm:grid-cols-[11rem_1fr] sm:items-center">
-          <svg className="mx-auto h-44 w-44" viewBox="0 0 100 100" role="img" aria-label={`${title}: distribución por porcentaje`}>
+        <div className="mt-4 grid gap-5 md:grid-cols-[10rem_minmax(0,1fr)] md:items-center">
+          <svg className="mx-auto h-40 w-40" viewBox="0 0 100 100" role="img" aria-label={`${title}: distribución por porcentaje`}>
             {items.map((item, index) => {
               const sweep = (item.amount / total) * 360;
               const end = start + sweep;
@@ -46,11 +46,17 @@ export function PieBreakdown({ title, currency, items }: { title: string; curren
             <text x="50" y="47" textAnchor="middle" className="fill-foreground text-[8px] font-semibold">Total</text>
             <text x="50" y="57" textAnchor="middle" className="fill-foreground text-[8px]">{currencySymbol[currency]}{total.toFixed(2)}</text>
           </svg>
-          <ul className="space-y-2 text-sm">
+          <ul className="min-w-0 space-y-2 text-sm">
             {items.map((item, index) => (
-              <li key={item.label} className="flex items-start justify-between gap-3">
-                <span className="flex min-w-0 items-center gap-2"><span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} /><span className="truncate">{item.label}</span></span>
-                <span className="shrink-0 text-right font-medium">{(item.amount / total * 100).toFixed(1)}%<span className="ml-1 text-muted-foreground">{currencySymbol[currency]}{item.amount.toFixed(2)}</span></span>
+              <li key={item.label} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                  <span className="truncate">{item.label}</span>
+                </span>
+                <span className="text-right font-medium tabular-nums">
+                  {(item.amount / total * 100).toFixed(1)}%
+                  <span className="ml-1 text-muted-foreground">{currencySymbol[currency]}{item.amount.toFixed(2)}</span>
+                </span>
               </li>
             ))}
           </ul>
