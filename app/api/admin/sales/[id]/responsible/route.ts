@@ -6,7 +6,7 @@ import { assignSaleResponsible } from "@/lib/db/queries";
 const schema = z.object({ responsibleStaffId: z.string().uuid().optional().or(z.literal("")) });
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const profile = await requireApiProfile("admin");
+  const profile = await requireApiProfile(["admin", "seller"]);
   if (profile instanceof NextResponse) return profile;
   if (!profile.diveCenterId) return NextResponse.json({ error: "Centro de buceo no encontrado" }, { status: 400 });
 

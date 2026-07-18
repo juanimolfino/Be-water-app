@@ -3,7 +3,7 @@ import { requireApiProfile } from "@/lib/auth/api";
 import { deactivateAgendaItem } from "@/lib/db/queries";
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const profile = await requireApiProfile("admin");
+  const profile = await requireApiProfile(["admin", "seller"]);
   if (profile instanceof NextResponse) return profile;
   if (!profile.diveCenterId) return NextResponse.json({ error: "Centro de buceo no encontrado" }, { status: 400 });
 

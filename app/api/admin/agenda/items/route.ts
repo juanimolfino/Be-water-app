@@ -12,7 +12,7 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const profile = await requireApiProfile("admin");
+  const profile = await requireApiProfile(["admin", "seller"]);
   if (profile instanceof NextResponse) return profile;
   if (!profile.diveCenterId) return NextResponse.json({ error: "Centro de buceo no encontrado" }, { status: 400 });
 

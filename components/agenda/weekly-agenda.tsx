@@ -21,6 +21,7 @@ export type AgendaEntry = {
   cancellationReason: string | null;
   assignedStaffId?: string | null;
   assignedStaff?: { fullName: string; role: "instructor" | "dm"; affiliation: "be_water" | "freelance" } | null;
+  seller?: { fullName: string | null; email: string } | null;
   activity: { tourName: string; providerName: string; isOwnActivity: boolean };
 };
 
@@ -310,6 +311,7 @@ function ReservationBlock({
       </div>
       <p>{entry.quantity} {entry.quantity === 1 ? "persona" : "personas"} · {entry.activity.isOwnActivity ? "Propia" : "Tercero"}</p>
       <p className="text-muted-foreground">{entry.customerName ?? "Cliente sin nombre"}{entry.customerPhone ? ` · ${entry.customerPhone}` : ""}</p>
+      {entry.seller ? <p className="text-muted-foreground">Vendedor: {entry.seller.fullName ?? entry.seller.email}</p> : null}
       {entry.assignedStaff ? <p className="text-muted-foreground">Responsable: {entry.assignedStaff.fullName}</p> : null}
       <p className="mt-1 font-medium">{saleAgendaStatusLabel[agendaStatus]}</p>
       {agendaStatus === "unpaid" ? (

@@ -12,7 +12,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" }, { status: 400 });
   const { id } = await params;
-  const result = await cancelSale({ saleId: id, diveCenterId: profile.diveCenterId, sellerId: profile.id, cancelledByUserId: profile.id, cancellationReason: parsed.data.reason });
-  if (!result.length) return NextResponse.json({ error: "La reserva no existe, ya fue anulada o no te pertenece." }, { status: 404 });
+  const result = await cancelSale({ saleId: id, diveCenterId: profile.diveCenterId, cancelledByUserId: profile.id, cancellationReason: parsed.data.reason });
+  if (!result.length) return NextResponse.json({ error: "La reserva no existe o ya fue anulada." }, { status: 404 });
   return NextResponse.json({ sale: result[0] });
 }
