@@ -16,7 +16,7 @@ export const metadata = { title: "Ingresos" };
 export default async function AdminReportPage({
   searchParams
 }: {
-  searchParams: Promise<{ from?: string; to?: string; activity?: string; provider?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; activity?: string; provider?: string; providerLimit?: string; dailyLimit?: string; detailLimit?: string }>;
 }) {
   const profile = await getCurrentProfile();
   const diveCenterId = profile.diveCenterId as string;
@@ -32,6 +32,9 @@ export default async function AdminReportPage({
   const to = params.to ?? dateInputValue(period.nextPaymentDate);
   const fromDate = parseDate(from);
   const toDate = parseDate(to, true);
+  const providerLimit = Math.max(3, Number(params.providerLimit) || 3);
+  const dailyLimit = Math.max(3, Number(params.dailyLimit) || 3);
+  const detailLimit = Math.max(10, Number(params.detailLimit) || 10);
   const providers = [...new Set(activities.map((activity) => activity.providerName))].sort();
 
   const filteredSales = sales.filter((sale) => {
@@ -57,10 +60,37 @@ export default async function AdminReportPage({
       currency: sale.currency,
       amount: Number(sale.activity.netPrice) * sale.quantity
     }))
-    .sort((a, b) => a.provider.localeCompare(b.provider) || String(a.sale.tourDate).localeCompare(String(b.sale.tourDate)));
+    .sort((a, b) => {
+      const aTime = (a.sale.tourDate ? new Date(`${a.sale.tourDate}T12:00:00`) : a.sale.saleDate).getTime();
+      const bTime = (b.sale.tourDate ? new Date(`${b.sale.tourDate}T12:00:00`) : b.sale.saleDate).getTime();
+      return bTime - aTime;
+    });
   const pendingProviderPaymentRows = providerPaymentRows.filter(
     (payment) => payment.sale.reservationStatus === "active" && payment.sale.providerPaymentStatus === "pending"
   );
+  const closedProviderPaymentRows = providerPaymentRows.filter(
+    (payment) => payment.sale.reservationStatus === "cancelled" || payment.sale.providerPaymentStatus === "paid"
+  );
+  const visibleClosedProviderPaymentRows = closedProviderPaymentRows.slice(0, providerLimit);
+  const sortedDailyRows = [...daily.entries()].sort(([a], [b]) => b.localeCompare(a));
+  const visibleDailyRows = sortedDailyRows.slice(0, dailyLimit);
+  const visibleSales = filteredSales.slice(0, detailLimit);
+
+  function reportHref(updates: Record<string, string | number | undefined>) {
+    const query = new URLSearchParams();
+    query.set("from", from);
+    query.set("to", to);
+    if (params.activity) query.set("activity", params.activity);
+    if (params.provider) query.set("provider", params.provider);
+    if (params.providerLimit) query.set("providerLimit", params.providerLimit);
+    if (params.dailyLimit) query.set("dailyLimit", params.dailyLimit);
+    if (params.detailLimit) query.set("detailLimit", params.detailLimit);
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === undefined) query.delete(key);
+      else query.set(key, String(value));
+    }
+    return `/admin/report?${query.toString()}`;
+  }
 
   return (
     <>
@@ -126,26 +156,18 @@ export default async function AdminReportPage({
 
       <h2 className="mb-3 text-xl font-semibold">Pagos a proveedores</h2>
       {providerPaymentRows.length === 0 ? <p className="mb-8 text-muted-foreground">No hay pagos a proveedores para este período.</p> : (
-        <div className="mb-8 overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Fecha</th><th className="px-4 py-2">Proveedor / tour</th><th className="px-4 py-2">Unidades</th><th className="px-4 py-2">A pagar</th><th className="px-4 py-2">Estado</th><th className="px-4 py-2">Acción</th></tr></thead>
-            <tbody>{providerPaymentRows.map((payment) => {
-              const cancelled = payment.sale.reservationStatus === "cancelled";
-              const paid = payment.sale.providerPaymentStatus === "paid";
-              return (
-                <tr key={payment.sale.id} className="border-t">
-                  <td className="px-4 py-2">{payment.sale.tourDate ? new Date(`${payment.sale.tourDate}T12:00:00`).toLocaleDateString() : "—"}</td>
-                  <td className="px-4 py-2"><p>{payment.provider}</p><p className="text-muted-foreground">{payment.tourName}</p></td>
-                  <td className="px-4 py-2">{payment.sale.quantity}</td>
-                  <td className="px-4 py-2">{payment.currency === "USD" ? "$" : "₡"}{payment.amount.toFixed(2)}</td>
-                  <td className="px-4 py-2">
-                    {cancelled ? <Badge className={tourStatusClasses.cancelled}>Cancelado</Badge> : paid ? <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700"><CheckCircle2 className="mr-1 h-3 w-3" /> Pagado</Badge> : <Badge className="border-amber-200 bg-amber-50 text-amber-700">Pendiente</Badge>}
-                    {paid && payment.sale.providerPaymentMethod ? <p className="mt-1 text-xs text-muted-foreground">{payment.sale.providerPaymentMethod === "cash" ? "Efectivo" : "Transferencia"}</p> : null}
-                  </td>
-                  <td className="px-4 py-2">{!cancelled && !paid ? <ProviderPaymentButton saleId={payment.sale.id} /> : "—"}</td>
-                </tr>
-              );
-            })}</tbody>
-          </table>
+        <div className="mb-8 space-y-4">
+          {pendingProviderPaymentRows.length > 0 ? (
+            <ProviderPaymentsTable title="Pendientes" rows={pendingProviderPaymentRows} />
+          ) : <p className="text-sm text-muted-foreground">No hay pagos pendientes a proveedores.</p>}
+          {visibleClosedProviderPaymentRows.length > 0 ? (
+            <>
+              <ProviderPaymentsTable title="Pagados y cancelados recientes" rows={visibleClosedProviderPaymentRows} />
+              {closedProviderPaymentRows.length > providerLimit ? (
+                <Link className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium" href={reportHref({ providerLimit: providerLimit + 3 })}>Ver 3 pagos más</Link>
+              ) : null}
+            </>
+          ) : null}
         </div>
       )}
 
@@ -153,16 +175,27 @@ export default async function AdminReportPage({
       {daily.size === 0 ? <p className="mb-8 text-muted-foreground">No hay ventas para los filtros seleccionados.</p> : (
         <div className="mb-8 overflow-x-auto rounded-lg border">
           <table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Fecha</th><th className="px-4 py-2">Ventas</th><th className="px-4 py-2">Ingresos</th><th className="px-4 py-2">Incentivos aprobados</th></tr></thead>
-            <tbody>{[...daily.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([day, rows]) => <tr key={day} className="border-t"><td className="px-4 py-2">{new Date(`${day}T12:00:00`).toLocaleDateString()}</td><td className="px-4 py-2">{rows.length}</td><td className="px-4 py-2">{formatMoneyTotals(rows.map((sale) => ({ currency: sale.currency, amount: sale.grossAmount })))}</td><td className="px-4 py-2">{formatMoneyTotals(rows.filter((sale) => sale.commissionStatus === "approved").map((sale) => ({ currency: sale.currency, amount: sale.commissionAmount })))}</td></tr>)}</tbody>
+            <tbody>{visibleDailyRows.map(([day, rows]) => <tr key={day} className="border-t"><td className="px-4 py-2">{new Date(`${day}T12:00:00`).toLocaleDateString()}</td><td className="px-4 py-2">{rows.length}</td><td className="px-4 py-2">{formatMoneyTotals(rows.map((sale) => ({ currency: sale.currency, amount: sale.grossAmount })))}</td><td className="px-4 py-2">{formatMoneyTotals(rows.filter((sale) => sale.commissionStatus === "approved").map((sale) => ({ currency: sale.currency, amount: sale.commissionAmount })))}</td></tr>)}</tbody>
           </table>
+          {sortedDailyRows.length > dailyLimit ? (
+            <div className="border-t p-3">
+              <Link className="inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium" href={reportHref({ dailyLimit: dailyLimit + 3 })}>Ver 3 días más</Link>
+            </div>
+          ) : null}
         </div>
       )}
 
       <h2 className="mb-3 text-xl font-semibold">Detalle de ventas</h2>
       {filteredSales.length === 0 ? <p className="text-muted-foreground">No hay ventas para mostrar.</p> : (
         <div className="overflow-x-auto rounded-lg border"><table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Venta</th><th className="px-4 py-2">Tour</th><th className="px-4 py-2">Cliente</th><th className="px-4 py-2">Contacto</th><th className="px-4 py-2">Empresa / tour</th><th className="px-4 py-2">Vendedor</th><th className="px-4 py-2">Ingreso</th><th className="px-4 py-2">Comisión</th><th className="px-4 py-2">Estado de comisión</th></tr></thead>
-          <tbody>{filteredSales.map((sale) => <tr key={sale.id} className="border-t"><td className="px-4 py-2">{sale.saleDate.toLocaleDateString()}</td><td className="px-4 py-2"><ReservationDateCell tourDate={sale.tourDate} reservationStatus={sale.reservationStatus} /></td><td className="px-4 py-2">{sale.customerName ?? "—"}</td><td className="px-4 py-2"><p>{sale.customerPhone ?? "—"}</p><p className="text-muted-foreground">{sale.customerEmail ?? ""}</p></td><td className="px-4 py-2"><p>{sale.activity.providerName}</p><p className="text-muted-foreground">{sale.activity.tourName}</p></td><td className="px-4 py-2">{sale.seller.fullName ?? sale.seller.email}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? "—" : `${sale.currency === "USD" ? "$" : "₡"}${sale.grossAmount}`}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? "—" : `${sale.currency === "USD" ? "$" : "₡"}${sale.commissionAmount}`}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? <Badge className={tourStatusClasses.cancelled}>Anulada</Badge> : <CommissionStatusBadge status={sale.commissionStatus} />}{sale.reservationStatus === "cancelled" && sale.cancellationReason ? <p className="mt-1 text-xs text-muted-foreground">{sale.cancellationReason}</p> : null}</td></tr>)}</tbody>
-        </table></div>
+          <tbody>{visibleSales.map((sale) => <tr key={sale.id} className="border-t"><td className="px-4 py-2">{sale.saleDate.toLocaleDateString()}</td><td className="px-4 py-2"><ReservationDateCell tourDate={sale.tourDate} reservationStatus={sale.reservationStatus} /></td><td className="px-4 py-2">{sale.customerName ?? "—"}</td><td className="px-4 py-2"><p>{sale.customerPhone ?? "—"}</p><p className="text-muted-foreground">{sale.customerEmail ?? ""}</p></td><td className="px-4 py-2"><p>{sale.activity.providerName}</p><p className="text-muted-foreground">{sale.activity.tourName}</p></td><td className="px-4 py-2">{sale.seller.role === "seller" ? sale.seller.fullName ?? sale.seller.email : "—"}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? "—" : `${sale.currency === "USD" ? "$" : "₡"}${sale.grossAmount}`}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" || sale.seller.role !== "seller" ? "—" : `${sale.currency === "USD" ? "$" : "₡"}${sale.commissionAmount}`}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? <Badge className={tourStatusClasses.cancelled}>Anulada</Badge> : sale.seller.role === "seller" ? <CommissionStatusBadge status={sale.commissionStatus} /> : "—"}{sale.reservationStatus === "cancelled" && sale.cancellationReason ? <p className="mt-1 text-xs text-muted-foreground">{sale.cancellationReason}</p> : null}</td></tr>)}</tbody>
+        </table>
+        {filteredSales.length > detailLimit ? (
+          <div className="border-t p-3">
+            <Link className="inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium" href={reportHref({ detailLimit: detailLimit + 10 })}>Ver 10 ventas más</Link>
+          </div>
+        ) : null}
+        </div>
       )}
     </>
   );
@@ -170,4 +203,45 @@ export default async function AdminReportPage({
 
 function Summary({ label, value }: { label: string; value: string }) {
   return <div className="rounded-lg border bg-card p-5"><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-semibold">{value}</p></div>;
+}
+
+function ProviderPaymentsTable({
+  title,
+  rows
+}: {
+  title: string;
+  rows: {
+    sale: Awaited<ReturnType<typeof listSalesForCenter>>[number];
+    provider: string;
+    tourName: string;
+    currency: "USD" | "CRC";
+    amount: number;
+  }[];
+}) {
+  return (
+    <section>
+      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Fecha</th><th className="px-4 py-2">Proveedor / tour</th><th className="px-4 py-2">Unidades</th><th className="px-4 py-2">A pagar</th><th className="px-4 py-2">Estado</th><th className="px-4 py-2">Acción</th></tr></thead>
+          <tbody>{rows.map((payment) => {
+            const cancelled = payment.sale.reservationStatus === "cancelled";
+            const paid = payment.sale.providerPaymentStatus === "paid";
+            return (
+              <tr key={payment.sale.id} className="border-t">
+                <td className="px-4 py-2">{payment.sale.tourDate ? new Date(`${payment.sale.tourDate}T12:00:00`).toLocaleDateString() : "—"}</td>
+                <td className="px-4 py-2"><p>{payment.provider}</p><p className="text-muted-foreground">{payment.tourName}</p></td>
+                <td className="px-4 py-2">{payment.sale.quantity}</td>
+                <td className="px-4 py-2">{payment.currency === "USD" ? "$" : "₡"}{payment.amount.toFixed(2)}</td>
+                <td className="px-4 py-2">
+                  {cancelled ? <Badge className={tourStatusClasses.cancelled}>Cancelado</Badge> : paid ? <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700"><CheckCircle2 className="mr-1 h-3 w-3" /> Pagado</Badge> : <Badge className="border-amber-200 bg-amber-50 text-amber-700">Pendiente</Badge>}
+                  {paid && payment.sale.providerPaymentMethod ? <p className="mt-1 text-xs text-muted-foreground">{payment.sale.providerPaymentMethod === "cash" ? "Efectivo" : "Transferencia"}</p> : null}
+                </td>
+                <td className="px-4 py-2">{!cancelled && !paid ? <ProviderPaymentButton saleId={payment.sale.id} /> : "—"}</td>
+              </tr>
+            );
+          })}</tbody>
+        </table>
+      </div>
+    </section>
+  );
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { SaleValidationActions } from "@/components/admin/sale-validation-row";
 import { SaleForm } from "@/components/seller/sale-form";
 import { CancelSaleButton } from "@/components/sales/cancel-sale-button";
@@ -9,14 +10,49 @@ import { listActivitiesForCenter, listSalesForCenter } from "@/lib/db/queries";
 
 export const metadata = { title: "Ventas" };
 
-export default async function AdminSalesPage() {
+const PAGE_SIZE = 10;
+
+function monthInputValue(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthRange(month: string) {
+  const [year, monthIndex] = month.split("-").map(Number);
+  const start = new Date(year, monthIndex - 1, 1);
+  const end = new Date(year, monthIndex, 1);
+  return { start, end };
+}
+
+export default async function AdminSalesPage({
+  searchParams
+}: {
+  searchParams: Promise<{ month?: string; limit?: string }>;
+}) {
   const profile = await getCurrentProfile();
   const diveCenterId = profile.diveCenterId as string;
-  const [pending, all, activities] = await Promise.all([
+  const [pending, all, activities, params] = await Promise.all([
     listSalesForCenter(diveCenterId, "pending"),
     listSalesForCenter(diveCenterId),
-    listActivitiesForCenter(diveCenterId)
+    listActivitiesForCenter(diveCenterId),
+    searchParams
   ]);
+  const now = new Date();
+  const currentMonth = monthInputValue(now);
+  const previousMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const previousMonth = monthInputValue(previousMonthDate);
+  const selectedMonth = params.month && /^\d{4}-\d{2}$/.test(params.month) ? params.month : currentMonth;
+  const { start, end } = monthRange(selectedMonth);
+  const limit = Math.max(PAGE_SIZE, Number(params.limit) || PAGE_SIZE);
+  const monthSales = all.filter((sale) => sale.saleDate >= start && sale.saleDate < end);
+  const visibleSales = monthSales.slice(0, limit);
+  const hasMoreSales = monthSales.length > limit;
+
+  function salesHref(input: { month?: string; limit?: number }) {
+    const query = new URLSearchParams();
+    query.set("month", input.month ?? selectedMonth);
+    if (input.limit) query.set("limit", String(input.limit));
+    return `/admin/sales?${query.toString()}`;
+  }
 
   return (
     <>
@@ -84,58 +120,76 @@ export default async function AdminSalesPage() {
       )}
 
       <h2 className="mb-3 text-xl font-semibold">Historial</h2>
-      {all.length === 0 ? (
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Link className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${selectedMonth === currentMonth ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/20" : ""}`} href={salesHref({ month: currentMonth })}>Mes en curso</Link>
+        <Link className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${selectedMonth === previousMonth ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/20" : ""}`} href={salesHref({ month: previousMonth })}>Mes anterior</Link>
+        <form className="flex items-center gap-2">
+          <input className="h-8 rounded-md border bg-background px-3 text-sm" type="month" name="month" defaultValue={selectedMonth} />
+          <button className="h-8 rounded-md border px-3 text-sm font-medium" type="submit">Ver mes</button>
+        </form>
+      </div>
+      {monthSales.length === 0 ? (
         <p className="text-muted-foreground">Todavía no hay ventas cargadas.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted text-left">
-              <tr>
-                <th className="px-4 py-2">Tour</th>
-                <th className="px-4 py-2">Vendedor</th>
-                <th className="px-4 py-2">Cliente</th>
-                <th className="px-4 py-2">Actividad</th>
-                <th className="px-4 py-2">Fecha de venta</th>
-                <th className="px-4 py-2">Estado de comisión</th>
-                <th className="px-4 py-2">Comisión</th>
-                <th className="px-4 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {all.map((sale) => {
-                const cancelled = sale.reservationStatus === "cancelled";
-                return (
-                  <tr key={sale.id} className="border-t">
-                    <td className="px-4 py-2">
-                      <ReservationDateCell tourDate={sale.tourDate} reservationStatus={sale.reservationStatus} />
-                    </td>
-                    <td className="px-4 py-2">{sale.seller.fullName ?? sale.seller.email}</td>
-                    <td className="px-4 py-2">
-                      <p>{sale.customerName ?? "—"}</p>
-                      <p className="text-muted-foreground">{sale.customerPhone ?? ""}</p>
-                    </td>
-                    <td className="px-4 py-2">{sale.activity.tourName}</td>
-                    <td className="px-4 py-2">{new Date(sale.saleDate).toLocaleDateString()}</td>
-                    <td className="px-4 py-2">
-                      <CommissionStatusBadge status={sale.commissionStatus} />
-                    </td>
-                    <td className="px-4 py-2">
-                      <CommissionAmount
-                        amount={sale.commissionAmount}
-                        currency={sale.currency}
-                        status={sale.commissionStatus}
-                        cancelled={cancelled}
-                      />
-                    </td>
-                    <td className="px-4 py-2">
-                      {!cancelled ? <CancelSaleButton saleId={sale.id} endpoint="/api/admin/sales" /> : null}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted text-left">
+                <tr>
+                  <th className="px-4 py-2">Tour</th>
+                  <th className="px-4 py-2">Vendedor</th>
+                  <th className="px-4 py-2">Cliente</th>
+                  <th className="px-4 py-2">Actividad</th>
+                  <th className="px-4 py-2">Fecha de venta</th>
+                  <th className="px-4 py-2">Estado de comisión</th>
+                  <th className="px-4 py-2">Comisión</th>
+                  <th className="px-4 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleSales.map((sale) => {
+                  const cancelled = sale.reservationStatus === "cancelled";
+                  const hasSellerCommission = sale.seller.role === "seller";
+                  return (
+                    <tr key={sale.id} className="border-t">
+                      <td className="px-4 py-2">
+                        <ReservationDateCell tourDate={sale.tourDate} reservationStatus={sale.reservationStatus} />
+                      </td>
+                      <td className="px-4 py-2">{hasSellerCommission ? sale.seller.fullName ?? sale.seller.email : "—"}</td>
+                      <td className="px-4 py-2">
+                        <p>{sale.customerName ?? "—"}</p>
+                        <p className="text-muted-foreground">{sale.customerPhone ?? ""}</p>
+                      </td>
+                      <td className="px-4 py-2">{sale.activity.tourName}</td>
+                      <td className="px-4 py-2">{new Date(sale.saleDate).toLocaleDateString()}</td>
+                      <td className="px-4 py-2">
+                        {hasSellerCommission ? <CommissionStatusBadge status={sale.commissionStatus} /> : "—"}
+                      </td>
+                      <td className="px-4 py-2">
+                        {hasSellerCommission ? (
+                          <CommissionAmount
+                            amount={sale.commissionAmount}
+                            currency={sale.currency}
+                            status={sale.commissionStatus}
+                            cancelled={cancelled}
+                          />
+                        ) : "—"}
+                      </td>
+                      <td className="px-4 py-2">
+                        {!cancelled ? <CancelSaleButton saleId={sale.id} endpoint="/api/admin/sales" /> : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {hasMoreSales ? (
+            <div className="mt-4">
+              <Link className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium" href={salesHref({ limit: limit + PAGE_SIZE })}>Ver 10 ventas más</Link>
+            </div>
+          ) : null}
+        </>
       )}
     </>
   );
