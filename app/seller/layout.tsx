@@ -15,7 +15,7 @@ export default async function SellerLayout({ children }: { children: React.React
   return (
     <div className="min-h-screen">
       <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 md:px-6">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-abyss">
               <Image src="/brand/logo-be-water.png" alt="Be Water Diving" width={30} height={30} className="h-7 w-7 object-contain" />
@@ -33,7 +33,7 @@ export default async function SellerLayout({ children }: { children: React.React
           </form>
         </div>
       </header>
-      <div className="mx-auto max-w-6xl px-6 py-8">{children}</div>
+      <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">{children}</div>
     </div>
   );
 }
