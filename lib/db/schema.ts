@@ -55,6 +55,7 @@ export const users = pgTable(
     fullName: text("full_name"),
     role: roleEnum("role").default("admin").notNull(),
     diveCenterId: uuid("dive_center_id").references(() => diveCenters.id, { onDelete: "set null" }),
+    active: boolean("active").default(true).notNull(),
     stripeCustomerId: text("stripe_customer_id").unique(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()

@@ -16,6 +16,7 @@ type ActivityOption = {
   id: string;
   providerName: string;
   tourName: string;
+  isOwnActivity: boolean;
 };
 
 export function AgendaControls({
@@ -34,8 +35,11 @@ export function AgendaControls({
   const router = useRouter();
   const [itemOpen, setItemOpen] = useState(false);
   const [noticeOpen, setNoticeOpen] = useState(false);
+  const [selectedActivityId, setSelectedActivityId] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const selectedActivity = activities.find((activity) => activity.id === selectedActivityId);
+  const canAssignSelectedActivity = selectedActivity?.isOwnActivity ?? false;
 
   async function submitJson(endpoint: string, body: Record<string, unknown>) {
     setLoading(true);
@@ -63,11 +67,12 @@ export function AgendaControls({
       itemDate: form.get("itemDate"),
       activityId: form.get("activityId"),
       quantity: form.get("quantity"),
-      responsibleStaffId: form.get("responsibleStaffId"),
+      responsibleStaffId: form.get("responsibleStaffId") ?? "",
       notes: form.get("notes")
     });
     if (ok) {
       event.currentTarget.reset();
+      setSelectedActivityId("");
       setItemOpen(false);
     }
   }
@@ -108,7 +113,13 @@ export function AgendaControls({
           </label>
           <label className="text-sm font-medium md:col-span-2">
             Qué se agrega
-            <select className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm" required name="activityId" defaultValue="">
+            <select
+              className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm"
+              required
+              name="activityId"
+              value={selectedActivityId}
+              onChange={(event) => setSelectedActivityId(event.target.value)}
+            >
               <option value="" disabled>Elegí una actividad</option>
               {activities.map((activity) => (
                 <option key={activity.id} value={activity.id}>
@@ -121,17 +132,23 @@ export function AgendaControls({
             Personas
             <Input className="mt-1" type="number" min={1} name="quantity" />
           </label>
-          <label className="text-sm font-medium md:col-span-2">
-            Responsable
-            <select className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm" name="responsibleStaffId">
-              <option value="">Sin asignar</option>
-              {responsibles.map((responsible) => (
-                <option key={responsible.id} value={responsible.id}>
-                  {responsible.fullName}
-                </option>
-              ))}
-            </select>
-          </label>
+          {canAssignSelectedActivity ? (
+            <label className="text-sm font-medium md:col-span-2">
+              Responsable
+              <select className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm" name="responsibleStaffId">
+                <option value="">Sin asignar</option>
+                {responsibles.map((responsible) => (
+                  <option key={responsible.id} value={responsible.id}>
+                    {responsible.fullName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground md:col-span-2">
+              Las actividades de terceros no llevan responsable interno.
+            </div>
+          )}
           <label className="text-sm font-medium md:col-span-2">
             Notas
             <Input className="mt-1" name="notes" placeholder="Opcional" />

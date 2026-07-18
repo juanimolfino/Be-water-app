@@ -28,7 +28,7 @@ export type AgendaManualItem = {
   id: string;
   itemDate: string;
   title: string;
-  activity?: { tourName: string; providerName: string } | null;
+  activity?: { tourName: string; providerName: string; isOwnActivity: boolean } | null;
   quantity: number | null;
   responsibleStaffId: string | null;
   responsibleStaff: { fullName: string; role: "instructor" | "dm"; affiliation: "be_water" | "freelance" } | null;
@@ -237,7 +237,7 @@ function ManualBlock({
       {item.quantity ? <p>{item.quantity} {item.quantity === 1 ? "persona" : "personas"}</p> : null}
       {item.responsibleStaff ? <p className="text-sky-800">Responsable: {item.responsibleStaff.fullName}</p> : null}
       {item.notes ? <p className="mt-1 text-sky-800">{item.notes}</p> : null}
-      {canAssignResponsible ? (
+      {canAssignResponsible && item.activity?.isOwnActivity ? (
         <ResponsibleSelect
           value={item.responsibleStaffId}
           responsibles={responsibles}
@@ -275,7 +275,7 @@ function ReservationBlock({
       <p className="mt-1 font-medium">{saleAgendaStatusLabel[agendaStatus]}</p>
       {agendaStatus === "unpaid" ? <MarkPaidButton saleId={entry.id} endpoint={endpoint} /> : null}
       {cancelled && entry.cancellationReason ? <p className="mt-1 text-muted-foreground">{entry.cancellationReason}</p> : null}
-      {canAssignResponsible ? (
+      {canAssignResponsible && entry.activity.isOwnActivity ? (
         <ResponsibleSelect
           value={entry.assignedStaffId ?? null}
           responsibles={responsibles}

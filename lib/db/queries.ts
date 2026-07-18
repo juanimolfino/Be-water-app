@@ -403,7 +403,7 @@ export async function updateCommissionPaymentDays(diveCenterId: string, paymentD
 
 export async function listSellersForCenter(diveCenterId: string) {
   return getDb().query.users.findMany({
-    where: and(eq(users.diveCenterId, diveCenterId), eq(users.role, "seller")),
+    where: and(eq(users.diveCenterId, diveCenterId), eq(users.role, "seller"), eq(users.active, true)),
     orderBy: asc(users.fullName)
   });
 }
@@ -425,6 +425,22 @@ export async function createSellerProfile(input: {
     })
     .returning();
   return seller;
+}
+
+export async function updateSellerProfile(input: { sellerId: string; diveCenterId: string; fullName?: string | null; email: string }) {
+  return getDb()
+    .update(users)
+    .set({ fullName: input.fullName || null, email: input.email, updatedAt: new Date() })
+    .where(and(eq(users.id, input.sellerId), eq(users.diveCenterId, input.diveCenterId), eq(users.role, "seller")))
+    .returning();
+}
+
+export async function deactivateSellerProfile(input: { sellerId: string; diveCenterId: string }) {
+  return getDb()
+    .update(users)
+    .set({ active: false, updatedAt: new Date() })
+    .where(and(eq(users.id, input.sellerId), eq(users.diveCenterId, input.diveCenterId), eq(users.role, "seller")))
+    .returning();
 }
 
 export async function listStaffMembersForCenter(diveCenterId: string) {
@@ -454,6 +470,35 @@ export async function createStaffMember(input: {
     })
     .returning();
   return staff;
+}
+
+export async function updateStaffMember(input: {
+  staffId: string;
+  diveCenterId: string;
+  fullName: string;
+  phone?: string | null;
+  role: StaffRole;
+  affiliation: StaffAffiliation;
+}) {
+  return getDb()
+    .update(staffMembers)
+    .set({
+      fullName: input.fullName,
+      phone: input.phone || null,
+      role: input.role,
+      affiliation: input.affiliation,
+      updatedAt: new Date()
+    })
+    .where(and(eq(staffMembers.id, input.staffId), eq(staffMembers.diveCenterId, input.diveCenterId), eq(staffMembers.active, true)))
+    .returning();
+}
+
+export async function deactivateStaffMember(input: { staffId: string; diveCenterId: string }) {
+  return getDb()
+    .update(staffMembers)
+    .set({ active: false, updatedAt: new Date() })
+    .where(and(eq(staffMembers.id, input.staffId), eq(staffMembers.diveCenterId, input.diveCenterId), eq(staffMembers.active, true)))
+    .returning();
 }
 
 // --- Sales ----------------------------------------------------------------
@@ -587,6 +632,13 @@ export async function markSalePaid(input: { saleId: string; diveCenterId: string
 }
 
 export async function assignSaleResponsible(input: { saleId: string; diveCenterId: string; responsibleStaffId?: string | null }) {
+  const sale = await getDb().query.sales.findFirst({
+    columns: { id: true },
+    where: and(eq(sales.id, input.saleId), eq(sales.diveCenterId, input.diveCenterId)),
+    with: { activity: true }
+  });
+  if (!sale || !sale.activity.isOwnActivity) return [];
+
   if (input.responsibleStaffId) {
     const responsible = await getDb().query.staffMembers.findFirst({
       columns: { id: true },
@@ -680,7 +732,7 @@ export async function createAgendaItem(input: {
       title: `${activity.providerName} · ${activity.tourName}`,
       activityId: activity.id,
       quantity: input.quantity ?? null,
-      responsibleStaffId: input.responsibleStaffId || null,
+      responsibleStaffId: activity.isOwnActivity ? input.responsibleStaffId || null : null,
       notes: input.notes || null,
       createdByUserId: input.createdByUserId
     })
@@ -689,6 +741,13 @@ export async function createAgendaItem(input: {
 }
 
 export async function assignAgendaItemResponsible(input: { itemId: string; diveCenterId: string; responsibleStaffId?: string | null }) {
+  const item = await getDb().query.agendaItems.findFirst({
+    columns: { id: true },
+    where: and(eq(agendaItems.id, input.itemId), eq(agendaItems.diveCenterId, input.diveCenterId)),
+    with: { activity: true }
+  });
+  if (!item || !item.activity?.isOwnActivity) return [];
+
   if (input.responsibleStaffId) {
     const responsible = await getDb().query.staffMembers.findFirst({
       columns: { id: true },
