@@ -90,13 +90,13 @@ function StaffTable({ title, members }: { title: string; members: StaffMember[] 
         <p className="text-sm text-muted-foreground">No hay personas cargadas.</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full table-fixed text-sm">
+          <table className="w-full text-sm">
             <thead className="bg-muted text-left">
               <tr>
-                <th className="w-[30%] px-4 py-2">Nombre</th>
-                <th className="w-[16%] px-4 py-2">Rol</th>
-                <th className="w-[36%] px-4 py-2">Teléfono</th>
-                <th className="w-[18%] px-4 py-2 text-right">Acciones</th>
+                <th className="px-4 py-2">Nombre</th>
+                <th className="px-4 py-2">Rol</th>
+                <th className="px-4 py-2">Teléfono</th>
+                <th className="px-4 py-2 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -198,13 +198,13 @@ function SellerTable({ sellers }: { sellers: Seller[] }) {
     <>
       {error ? <p className="mb-2 text-sm text-destructive">{error}</p> : null}
       <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full table-fixed text-sm">
+        <table className="w-full text-sm">
           <thead className="bg-muted text-left">
             <tr>
-              <th className="w-[26%] px-4 py-2">Nombre</th>
-              <th className="w-[38%] px-4 py-2">Email</th>
-              <th className="w-[18%] px-4 py-2">Creado</th>
-              <th className="w-[18%] px-4 py-2 text-right">Acciones</th>
+              <th className="px-4 py-2">Nombre</th>
+              <th className="px-4 py-2">Email</th>
+              <th className="px-4 py-2">Creado</th>
+              <th className="px-4 py-2 text-right">Acciones</th>
             </tr>
           </thead>
           <tbody>
