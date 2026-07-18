@@ -140,6 +140,7 @@ export const agendaItems = pgTable("agenda_items", {
   responsibleUserId: uuid("responsible_user_id").references(() => users.id, { onDelete: "set null" }),
   responsibleStaffId: uuid("responsible_staff_id").references(() => staffMembers.id, { onDelete: "set null" }),
   notes: text("notes"),
+  active: boolean("active").default(true).notNull(),
   createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()

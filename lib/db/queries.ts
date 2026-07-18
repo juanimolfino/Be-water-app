@@ -690,7 +690,7 @@ export async function markProviderPaymentPaid(input: {
 
 export async function listAgendaItemsForCenter(diveCenterId: string) {
   return getDb().query.agendaItems.findMany({
-    where: eq(agendaItems.diveCenterId, diveCenterId),
+    where: and(eq(agendaItems.diveCenterId, diveCenterId), eq(agendaItems.active, true)),
     orderBy: [asc(agendaItems.itemDate), asc(agendaItems.createdAt)],
     with: { activity: true, responsibleStaff: true, createdBy: true }
   });
@@ -743,7 +743,7 @@ export async function createAgendaItem(input: {
 export async function assignAgendaItemResponsible(input: { itemId: string; diveCenterId: string; responsibleStaffId?: string | null }) {
   const item = await getDb().query.agendaItems.findFirst({
     columns: { id: true },
-    where: and(eq(agendaItems.id, input.itemId), eq(agendaItems.diveCenterId, input.diveCenterId)),
+    where: and(eq(agendaItems.id, input.itemId), eq(agendaItems.diveCenterId, input.diveCenterId), eq(agendaItems.active, true)),
     with: { activity: true }
   });
   if (!item || !item.activity?.isOwnActivity) return [];
@@ -759,7 +759,15 @@ export async function assignAgendaItemResponsible(input: { itemId: string; diveC
   return getDb()
     .update(agendaItems)
     .set({ responsibleStaffId: input.responsibleStaffId || null, updatedAt: new Date() })
-    .where(and(eq(agendaItems.id, input.itemId), eq(agendaItems.diveCenterId, input.diveCenterId)))
+    .where(and(eq(agendaItems.id, input.itemId), eq(agendaItems.diveCenterId, input.diveCenterId), eq(agendaItems.active, true)))
+    .returning();
+}
+
+export async function deactivateAgendaItem(input: { itemId: string; diveCenterId: string }) {
+  return getDb()
+    .update(agendaItems)
+    .set({ active: false, updatedAt: new Date() })
+    .where(and(eq(agendaItems.id, input.itemId), eq(agendaItems.diveCenterId, input.diveCenterId), eq(agendaItems.active, true)))
     .returning();
 }
 

@@ -1,0 +1,1 @@
+ALTER TABLE "agenda_items" ADD COLUMN "active" boolean DEFAULT true NOT NULL;

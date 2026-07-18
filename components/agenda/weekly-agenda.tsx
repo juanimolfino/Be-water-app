@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, XCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResponsibleSelect } from "@/components/agenda/responsible-select";
 import { MarkPaidButton } from "@/components/sales/mark-paid-button";
@@ -90,6 +90,7 @@ export function WeeklyAgenda({
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const start = startOfWeek(parseDate(week));
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(start);
@@ -121,6 +122,21 @@ export function WeeklyAgenda({
     router.refresh();
   }
 
+  async function deleteManualItem(item: AgendaManualItem) {
+    if (!confirm(`¿Quitar "${item.title}" de ventas por fuera?`)) return;
+
+    setDeletingItemId(item.id);
+    setError(null);
+    const response = await fetch(`/api/admin/agenda/items/${item.id}`, { method: "DELETE" });
+    const body = (await response.json().catch(() => ({}))) as { error?: string };
+    setDeletingItemId(null);
+    if (!response.ok) {
+      setError(body.error ?? "No se pudo quitar la venta por fuera.");
+      return;
+    }
+    router.refresh();
+  }
+
   return (
     <>
       <div className="mb-6 flex items-center justify-between gap-3">
@@ -128,6 +144,7 @@ export function WeeklyAgenda({
         <p className="text-sm font-medium">{start.toLocaleDateString()} al {days[6].toLocaleDateString()}</p>
         <Link className="inline-flex h-9 items-center gap-1 rounded-md border px-3 text-sm font-medium" href={`${basePath}?week=${dateKey(next)}`}>Semana siguiente <ChevronRight className="h-4 w-4" /></Link>
       </div>
+      {error && !cancelling ? <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 
       <div className="grid overflow-hidden rounded-lg border md:grid-cols-7">
         {days.map((day) => {
@@ -146,7 +163,7 @@ export function WeeklyAgenda({
               </div>
               <div className="space-y-2">
                 {dayItems.length > 0 ? (
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Fuera de ventas</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Ventas por fuera</p>
                 ) : null}
                 {dayItems.map((item) => (
                   <ManualBlock
@@ -154,6 +171,8 @@ export function WeeklyAgenda({
                     item={item}
                     responsibles={responsibles}
                     canAssignResponsible={canAssignResponsible}
+                    deleting={deletingItemId === item.id}
+                    onDelete={canAssignResponsible ? () => deleteManualItem(item) : undefined}
                   />
                 ))}
                 {dayItems.length > 0 && dayEntries.length > 0 ? (
@@ -225,15 +244,35 @@ export function WeeklyAgenda({
 function ManualBlock({
   item,
   responsibles,
-  canAssignResponsible
+  canAssignResponsible,
+  deleting,
+  onDelete
 }: {
   item: AgendaManualItem;
   responsibles: Responsible[];
   canAssignResponsible: boolean;
+  deleting: boolean;
+  onDelete?: () => void;
 }) {
   return (
     <article className="border-l-4 border-sky-500 bg-sky-50 p-2 text-xs text-sky-950">
-      <p className="font-semibold">{item.title}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="font-semibold">{item.title}</p>
+        {onDelete ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={deleting}
+            onClick={onDelete}
+            title="Quitar venta por fuera"
+            aria-label="Quitar venta por fuera"
+            className="h-7 w-7 shrink-0 p-0 text-sky-950 hover:bg-sky-100"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        ) : null}
+      </div>
       {item.quantity ? <p>{item.quantity} {item.quantity === 1 ? "persona" : "personas"}</p> : null}
       {item.responsibleStaff ? <p className="text-sky-800">Responsable: {item.responsibleStaff.fullName}</p> : null}
       {item.notes ? <p className="mt-1 text-sky-800">{item.notes}</p> : null}
@@ -273,7 +312,9 @@ function ReservationBlock({
       <p className="text-muted-foreground">{entry.customerName ?? "Cliente sin nombre"}{entry.customerPhone ? ` · ${entry.customerPhone}` : ""}</p>
       {entry.assignedStaff ? <p className="text-muted-foreground">Responsable: {entry.assignedStaff.fullName}</p> : null}
       <p className="mt-1 font-medium">{saleAgendaStatusLabel[agendaStatus]}</p>
-      {agendaStatus === "unpaid" ? <MarkPaidButton saleId={entry.id} endpoint={endpoint} /> : null}
+      {agendaStatus === "unpaid" ? (
+        <MarkPaidButton saleId={entry.id} endpoint={endpoint} tone={entry.activity.isOwnActivity ? "success" : "danger"} />
+      ) : null}
       {cancelled && entry.cancellationReason ? <p className="mt-1 text-muted-foreground">{entry.cancellationReason}</p> : null}
       {canAssignResponsible && entry.activity.isOwnActivity ? (
         <ResponsibleSelect
