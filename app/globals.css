@@ -67,6 +67,18 @@ body {
   border-color: hsl(var(--border));
 }
 
+/* iOS Safari les da a los inputs de fecha un ancho intrínseco que desborda
+   su contenedor y centra el valor; normalizamos para que respeten w-full. */
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+}
+
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+
 /* ==========================================================================
    Utilidades de marca
    ========================================================================== */

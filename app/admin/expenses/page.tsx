@@ -37,7 +37,7 @@ export default async function AdminExpensesPage({
 
   const paymentDays = center?.commissionPaymentDays ?? [1, 15];
   const period = getCurrentPaymentPeriod(paymentDays);
-  const pastPeriods = getPastPaymentPeriods(paymentDays, 6);
+  const pastPeriods = getPastPaymentPeriods(paymentDays, 3);
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 

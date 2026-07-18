@@ -157,9 +157,9 @@ export function WeeklyAgenda({
   return (
     <>
       <div className="mb-6 flex items-center justify-between gap-3">
-        <Link className="inline-flex h-9 items-center gap-1 rounded-md border px-3 text-sm font-medium" href={`${basePath}?week=${dateKey(previous)}`}><ChevronLeft className="h-4 w-4" /> Semana anterior</Link>
+        <Link className="inline-flex h-9 items-center gap-1 rounded-md border px-3 text-sm font-medium" href={`${basePath}?week=${dateKey(previous)}`}><ChevronLeft className="h-4 w-4" /> Anterior</Link>
         <p className="text-sm font-medium">{start.toLocaleDateString()} al {days[6].toLocaleDateString()}</p>
-        <Link className="inline-flex h-9 items-center gap-1 rounded-md border px-3 text-sm font-medium" href={`${basePath}?week=${dateKey(next)}`}>Semana siguiente <ChevronRight className="h-4 w-4" /></Link>
+        <Link className="inline-flex h-9 items-center gap-1 rounded-md border px-3 text-sm font-medium" href={`${basePath}?week=${dateKey(next)}`}>Siguiente <ChevronRight className="h-4 w-4" /></Link>
       </div>
       {error && !cancelling ? <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 

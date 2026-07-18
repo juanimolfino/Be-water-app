@@ -93,10 +93,10 @@ function StaffTable({ title, members }: { title: string; members: StaffMember[] 
           <table className="w-full table-fixed text-sm">
             <thead className="bg-muted text-left">
               <tr>
-                <th className="w-[28%] px-4 py-2">Nombre</th>
+                <th className="w-[30%] px-4 py-2">Nombre</th>
                 <th className="w-[16%] px-4 py-2">Rol</th>
-                <th className="w-[28%] px-4 py-2">Teléfono</th>
-                <th className="w-[28%] px-4 py-2 text-right">Acciones</th>
+                <th className="w-[36%] px-4 py-2">Teléfono</th>
+                <th className="w-[18%] px-4 py-2 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -134,9 +134,9 @@ function StaffTable({ title, members }: { title: string; members: StaffMember[] 
                         ) : "—"}
                       </td>
                       <td className="px-4 py-2">
-                        <div className="flex justify-end gap-2">
-                          <Button type="button" size="sm" variant="outline" onClick={() => setEditing(member)}><Pencil className="h-4 w-4" /> Editar</Button>
-                          <Button type="button" size="sm" variant="outline" disabled={loadingId === member.id} onClick={() => deactivate(member)}><Trash2 className="h-4 w-4" /> Inactivar</Button>
+                        <div className="flex justify-end gap-1.5">
+                          <Button type="button" size="sm" variant="outline" className="h-8 w-8 p-0" title="Editar" aria-label={`Editar a ${member.fullName}`} onClick={() => setEditing(member)}><Pencil className="h-4 w-4" /></Button>
+                          <Button type="button" size="sm" variant="outline" className="h-8 w-8 p-0" title="Inactivar" aria-label={`Inactivar a ${member.fullName}`} disabled={loadingId === member.id} onClick={() => deactivate(member)}><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       </td>
                     </>
@@ -201,10 +201,10 @@ function SellerTable({ sellers }: { sellers: Seller[] }) {
         <table className="w-full table-fixed text-sm">
           <thead className="bg-muted text-left">
             <tr>
-              <th className="w-[28%] px-4 py-2">Nombre</th>
-              <th className="w-[28%] px-4 py-2">Email</th>
-              <th className="w-[16%] px-4 py-2">Creado</th>
-              <th className="w-[28%] px-4 py-2 text-right">Acciones</th>
+              <th className="w-[26%] px-4 py-2">Nombre</th>
+              <th className="w-[38%] px-4 py-2">Email</th>
+              <th className="w-[18%] px-4 py-2">Creado</th>
+              <th className="w-[18%] px-4 py-2 text-right">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -227,9 +227,9 @@ function SellerTable({ sellers }: { sellers: Seller[] }) {
                     <td className="px-4 py-2">{seller.email}</td>
                     <td className="px-4 py-2">{new Date(seller.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-2">
-                      <div className="flex justify-end gap-2">
-                        <Button type="button" size="sm" variant="outline" onClick={() => setEditing(seller)}><Pencil className="h-4 w-4" /> Editar</Button>
-                        <Button type="button" size="sm" variant="outline" disabled={loadingId === seller.id} onClick={() => deactivate(seller)}><Trash2 className="h-4 w-4" /> Inactivar</Button>
+                      <div className="flex justify-end gap-1.5">
+                        <Button type="button" size="sm" variant="outline" className="h-8 w-8 p-0" title="Editar" aria-label={`Editar a ${seller.fullName ?? seller.email}`} onClick={() => setEditing(seller)}><Pencil className="h-4 w-4" /></Button>
+                        <Button type="button" size="sm" variant="outline" className="h-8 w-8 p-0" title="Inactivar" aria-label={`Inactivar a ${seller.fullName ?? seller.email}`} disabled={loadingId === seller.id} onClick={() => deactivate(seller)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </td>
                   </>
