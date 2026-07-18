@@ -86,13 +86,13 @@ export default async function AdminExpensesPage({
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium text-muted-foreground">Filtro rápido:</span>
         <Link
-          className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${isCurrentPeriod ? "border-primary text-primary" : ""}`}
+          className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${isCurrentPeriod ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/20" : ""}`}
           href="/admin/expenses"
         >
           Período actual
         </Link>
         <Link
-          className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${isCurrentMonth ? "border-primary text-primary" : ""}`}
+          className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${isCurrentMonth ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/20" : ""}`}
           href={`/admin/expenses?from=${dateInputValue(monthStart)}&to=${dateInputValue(now)}`}
         >
           Mes en curso
@@ -104,7 +104,7 @@ export default async function AdminExpensesPage({
           return (
             <Link
               key={index}
-              className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${isActive ? "border-primary text-primary" : ""}`}
+              className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${isActive ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/20" : ""}`}
               href={`/admin/expenses?from=${quickFrom}&to=${quickTo}`}
             >
               {quickPeriod.start.toLocaleDateString()} – {quickPeriod.end.toLocaleDateString()}

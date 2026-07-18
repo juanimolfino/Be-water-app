@@ -3,8 +3,6 @@ import { PieBreakdown } from "@/components/admin/pie-breakdown";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import {
   getDiveCenterById,
-  listExpenseCategoriesForCenter,
-  listExpenseProvidersForCenter,
   listExpensesForCenter,
   listSalesForCenter
 } from "@/lib/db/queries";
@@ -55,14 +53,12 @@ function breakdown(items: { label: string; currency: Currency; amount: string }[
 export default async function AdminProfitsPage({
   searchParams
 }: {
-  searchParams: Promise<{ from?: string; to?: string; category?: string; provider?: string }>;
+  searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const profile = await getCurrentProfile();
   const diveCenterId = profile.diveCenterId as string;
-  const [center, categories, providers, sales, params] = await Promise.all([
+  const [center, sales, params] = await Promise.all([
     getDiveCenterById(diveCenterId),
-    listExpenseCategoriesForCenter(diveCenterId),
-    listExpenseProvidersForCenter(diveCenterId),
     listSalesForCenter(diveCenterId),
     searchParams
   ]);
@@ -78,9 +74,7 @@ export default async function AdminProfitsPage({
   const expenses = await listExpensesForCenter({
     diveCenterId,
     from,
-    to,
-    categoryId: params.category,
-    providerName: params.provider
+    to
   });
   const incomeSales = sales.filter((sale) =>
     sale.reservationStatus === "active" &&
@@ -92,7 +86,7 @@ export default async function AdminProfitsPage({
     .filter((sale) => sale.commissionStatus !== "rejected")
     .map((sale) => ({ currency: sale.currency, amount: sale.commissionAmount }));
   const providerRows = incomeSales
-    .filter((sale) => !sale.activity.isOwnActivity && sale.activity.netPrice)
+    .filter((sale) => !sale.activity.isOwnActivity && sale.activity.netPrice && sale.providerPaymentStatus === "paid")
     .map((sale) => ({ currency: sale.currency, amount: (Number(sale.activity.netPrice) * sale.quantity).toFixed(2) }));
   const expenseRows = expenses.map((expense) => ({ currency: expense.currency, amount: expense.amount }));
   const incomeBreakdown = breakdown(incomeSales.map((sale) => ({
@@ -118,21 +112,19 @@ export default async function AdminProfitsPage({
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium text-muted-foreground">Filtro rápido:</span>
-        <Link className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${isCurrentPeriod ? "border-primary text-primary" : ""}`} href="/admin/profits">Período actual</Link>
-        <Link className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${isCurrentMonth ? "border-primary text-primary" : ""}`} href={`/admin/profits?from=${dateInputValue(monthStart)}&to=${dateInputValue(now)}`}>Mes en curso</Link>
+        <Link className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${isCurrentPeriod ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/20" : ""}`} href="/admin/profits">Período actual</Link>
+        <Link className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${isCurrentMonth ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/20" : ""}`} href={`/admin/profits?from=${dateInputValue(monthStart)}&to=${dateInputValue(now)}`}>Mes en curso</Link>
         {pastPeriods.map((period, index) => {
           const quickFrom = dateInputValue(period.start);
           const quickTo = dateInputValue(period.end);
-          return <Link key={index} className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${from === quickFrom && to === quickTo ? "border-primary text-primary" : ""}`} href={`/admin/profits?from=${quickFrom}&to=${quickTo}`}>{period.start.toLocaleDateString()} – {period.end.toLocaleDateString()}</Link>;
+              return <Link key={index} className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${from === quickFrom && to === quickTo ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/20" : ""}`} href={`/admin/profits?from=${quickFrom}&to=${quickTo}`}>{period.start.toLocaleDateString()} – {period.end.toLocaleDateString()}</Link>;
         })}
       </div>
 
-      <form className="mb-6 grid gap-4 rounded-lg border bg-card p-5 md:grid-cols-4">
+      <form className="mb-6 grid gap-4 rounded-lg border bg-card p-5 md:grid-cols-2">
         <label className="text-sm font-medium">Desde<input className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm" type="date" name="from" defaultValue={from} /></label>
         <label className="text-sm font-medium">Hasta<input className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm" type="date" name="to" defaultValue={to} /></label>
-        <label className="text-sm font-medium">Categoría de gasto<select className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm" name="category" defaultValue={params.category ?? ""}><option value="">Todas</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
-        <label className="text-sm font-medium">Proveedor de gasto<select className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm" name="provider" defaultValue={params.provider ?? ""}><option value="">Todos</option>{providers.map((provider) => <option key={provider} value={provider}>{provider}</option>)}</select></label>
-        <div className="flex items-end gap-2 md:col-span-4"><button className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground" type="submit">Aplicar filtros</button></div>
+        <div className="flex items-end gap-2 md:col-span-2"><button className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground" type="submit">Aplicar filtros</button></div>
       </form>
 
       <p className="mb-3 text-sm text-muted-foreground">Período analizado: {periodLabel}</p>
@@ -140,8 +132,8 @@ export default async function AdminProfitsPage({
         <p className="mb-4 text-sm font-medium text-muted-foreground">Cálculo de ganancia</p>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4">
           <Summary label="Ingreso bruto" value={formatMoneyTotals(incomeRows)} />
-          <Summary label="Incentivos vendedores" value={formatMoneyTotals(sellerIncentiveRows)} prefix="−" />
-          <Summary label="Proveedores terceros" value={formatMoneyTotals(providerRows)} prefix="−" />
+          <Summary label="Incentivos" value={formatMoneyTotals(sellerIncentiveRows)} prefix="−" />
+          <Summary label="A terceros" value={formatMoneyTotals(providerRows)} prefix="−" />
           <Summary label="Gastos" value={formatMoneyTotals(expenseRows)} prefix="−" />
           <Summary label="Ganancia neta" value={formatMoneyTotals(profitRows(incomeRows, [sellerIncentiveRows, providerRows, expenseRows]))} prefix="=" highlight />
         </div>

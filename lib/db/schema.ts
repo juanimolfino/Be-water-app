@@ -29,6 +29,7 @@ export const paymentMethodEnum = pgEnum("payment_method", ["cash", "card", "tour
 export const commissionStatusEnum = pgEnum("commission_status", ["pending", "approved", "rejected"]);
 export const reservationStatusEnum = pgEnum("reservation_status", ["active", "cancelled"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["paid", "unpaid"]);
+export const providerPaymentStatusEnum = pgEnum("provider_payment_status", ["pending", "paid"]);
 export const expensePaymentMethodEnum = pgEnum("expense_payment_method", ["cash", "bank_transfer"]);
 
 export const diveCenters = pgTable("dive_centers", {
@@ -114,8 +115,36 @@ export const sales = pgTable("sales", {
   cancellationReason: text("cancellation_reason"),
   cancelledByUserId: uuid("cancelled_by_user_id").references(() => users.id, { onDelete: "set null" }),
   cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  assignedToUserId: uuid("assigned_to_user_id").references(() => users.id, { onDelete: "set null" }),
+  providerPaymentStatus: providerPaymentStatusEnum("provider_payment_status").default("pending").notNull(),
+  providerPaymentMethod: expensePaymentMethodEnum("provider_payment_method"),
+  providerPaidByUserId: uuid("provider_paid_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  providerPaidAt: timestamp("provider_paid_at", { withTimezone: true }),
   validatedByUserId: uuid("validated_by_user_id").references(() => users.id, { onDelete: "set null" }),
   validatedAt: timestamp("validated_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+});
+
+export const agendaItems = pgTable("agenda_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  diveCenterId: uuid("dive_center_id").references(() => diveCenters.id, { onDelete: "cascade" }).notNull(),
+  itemDate: date("item_date").notNull(),
+  title: text("title").notNull(),
+  quantity: integer("quantity"),
+  responsibleUserId: uuid("responsible_user_id").references(() => users.id, { onDelete: "set null" }),
+  notes: text("notes"),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+});
+
+export const agendaNotices = pgTable("agenda_notices", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  diveCenterId: uuid("dive_center_id").references(() => diveCenters.id, { onDelete: "cascade" }).notNull(),
+  noticeDate: date("notice_date").notNull(),
+  message: text("message").notNull(),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 });
@@ -203,6 +232,8 @@ export const diveCenterRelations = relations(diveCenters, ({ many }) => ({
   members: many(users),
   activities: many(activities),
   sales: many(sales),
+  agendaItems: many(agendaItems),
+  agendaNotices: many(agendaNotices),
   expenseCategories: many(expenseCategories),
   expenses: many(expenses)
 }));
@@ -216,7 +247,20 @@ export const saleRelations = relations(sales, ({ one }) => ({
   diveCenter: one(diveCenters, { fields: [sales.diveCenterId], references: [diveCenters.id] }),
   activity: one(activities, { fields: [sales.activityId], references: [activities.id] }),
   seller: one(users, { fields: [sales.sellerId], references: [users.id] }),
+  assignedTo: one(users, { fields: [sales.assignedToUserId], references: [users.id] }),
+  providerPaidBy: one(users, { fields: [sales.providerPaidByUserId], references: [users.id] }),
   validatedBy: one(users, { fields: [sales.validatedByUserId], references: [users.id] })
+}));
+
+export const agendaItemRelations = relations(agendaItems, ({ one }) => ({
+  diveCenter: one(diveCenters, { fields: [agendaItems.diveCenterId], references: [diveCenters.id] }),
+  responsible: one(users, { fields: [agendaItems.responsibleUserId], references: [users.id] }),
+  createdBy: one(users, { fields: [agendaItems.createdByUserId], references: [users.id] })
+}));
+
+export const agendaNoticeRelations = relations(agendaNotices, ({ one }) => ({
+  diveCenter: one(diveCenters, { fields: [agendaNotices.diveCenterId], references: [diveCenters.id] }),
+  createdBy: one(users, { fields: [agendaNotices.createdByUserId], references: [users.id] })
 }));
 
 export const expenseCategoryRelations = relations(expenseCategories, ({ one, many }) => ({
@@ -243,6 +287,9 @@ export type PaymentMethod = typeof paymentMethodEnum.enumValues[number];
 export type CommissionStatus = typeof commissionStatusEnum.enumValues[number];
 export type ReservationStatus = typeof reservationStatusEnum.enumValues[number];
 export type PaymentStatus = typeof paymentStatusEnum.enumValues[number];
+export type ProviderPaymentStatus = typeof providerPaymentStatusEnum.enumValues[number];
 export type ExpenseCategory = typeof expenseCategories.$inferSelect;
 export type Expense = typeof expenses.$inferSelect;
 export type ExpensePaymentMethod = typeof expensePaymentMethodEnum.enumValues[number];
+export type AgendaItem = typeof agendaItems.$inferSelect;
+export type AgendaNotice = typeof agendaNotices.$inferSelect;

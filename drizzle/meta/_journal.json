@@ -78,6 +78,13 @@
       "when": 1784329189051,
       "tag": "0010_overconfident_raider",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784383599318,
+      "tag": "0011_orange_spiral",
+      "breakpoints": true
     }
   ]
 }

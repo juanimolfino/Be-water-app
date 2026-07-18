@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { CheckCircle2 } from "lucide-react";
 import { CommissionStatusBadge } from "@/components/sales/commission-status-badge";
 import { ReservationDateCell } from "@/components/sales/reservation-date-cell";
+import { ProviderPaymentButton } from "@/components/sales/provider-payment-button";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import { getDiveCenterById, listActivitiesForCenter, listSalesForCenter } from "@/lib/db/queries";
@@ -9,7 +11,7 @@ import { formatMoneyTotals } from "@/lib/reports/money";
 import { getCurrentPaymentPeriod, getPastPaymentPeriods } from "@/lib/reports/payment-period";
 import { tourStatusClasses } from "@/lib/sales/status";
 
-export const metadata = { title: "Período" };
+export const metadata = { title: "Ingresos" };
 
 export default async function AdminReportPage({
   searchParams
@@ -46,25 +48,23 @@ export default async function AdminReportPage({
     daily.set(day, [...(daily.get(day) ?? []), sale]);
   }
   const approvedCommissions = financialSales.filter((sale) => sale.commissionStatus === "approved");
-  const providerPayments = new Map<string, { provider: string; sales: number; currency: "USD" | "CRC"; amount: number }>();
-  for (const sale of financialSales) {
-    if (sale.activity.isOwnActivity || !sale.activity.netPrice) continue;
-    const key = `${sale.activity.providerName}:${sale.activity.currency}`;
-    const current = providerPayments.get(key) ?? {
+  const providerPaymentRows = filteredSales
+    .filter((sale) => !sale.activity.isOwnActivity && sale.activity.netPrice)
+    .map((sale) => ({
+      sale,
       provider: sale.activity.providerName,
-      sales: 0,
-      currency: sale.activity.currency,
-      amount: 0
-    };
-    current.sales += sale.quantity;
-    current.amount += Number(sale.activity.netPrice) * sale.quantity;
-    providerPayments.set(key, current);
-  }
-  const providerPaymentRows = [...providerPayments.values()].sort((a, b) => a.provider.localeCompare(b.provider) || a.currency.localeCompare(b.currency));
+      tourName: sale.activity.tourName,
+      currency: sale.currency,
+      amount: Number(sale.activity.netPrice) * sale.quantity
+    }))
+    .sort((a, b) => a.provider.localeCompare(b.provider) || String(a.sale.tourDate).localeCompare(String(b.sale.tourDate)));
+  const pendingProviderPaymentRows = providerPaymentRows.filter(
+    (payment) => payment.sale.reservationStatus === "active" && payment.sale.providerPaymentStatus === "pending"
+  );
 
   return (
     <>
-      <h1 className="mb-1 text-3xl font-semibold">Período de ventas</h1>
+      <h1 className="mb-1 text-3xl font-semibold">Ingresos</h1>
       <p className="mb-4 text-muted-foreground">
         Período actual: {period.start.toLocaleDateString()} al {period.nextPaymentDate.toLocaleDateString()}.
       </p>
@@ -73,7 +73,7 @@ export default async function AdminReportPage({
         <span className="text-sm font-medium text-muted-foreground">Filtro rápido:</span>
         <Link
           className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${
-            !params.from && !params.to ? "border-primary text-primary" : ""
+            !params.from && !params.to ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/20" : ""
           }`}
           href="/admin/report"
         >
@@ -87,7 +87,7 @@ export default async function AdminReportPage({
             <Link
               key={index}
               className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${
-                isActive ? "border-primary text-primary" : ""
+              isActive ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/20" : ""
               }`}
               href={`/admin/report?from=${quickFrom}&to=${quickTo}`}
             >
@@ -119,16 +119,32 @@ export default async function AdminReportPage({
 
       <section className="mb-8 grid gap-4 md:grid-cols-4">
         <Summary label="Ingresos" value={formatMoneyTotals(financialSales.map((sale) => ({ currency: sale.currency, amount: sale.grossAmount })))} />
-        <Summary label="Comisiones aprobadas" value={formatMoneyTotals(approvedCommissions.map((sale) => ({ currency: sale.currency, amount: sale.commissionAmount })))} />
-        <Summary label="Comisiones pendientes" value={formatMoneyTotals(financialSales.filter((sale) => sale.commissionStatus === "pending").map((sale) => ({ currency: sale.currency, amount: sale.commissionAmount })))} />
-        <Summary label="A pagar a proveedores" value={formatMoneyTotals(providerPaymentRows.map((payment) => ({ currency: payment.currency, amount: payment.amount.toFixed(2) })))} />
+        <Summary label="Incentivos aprobados" value={formatMoneyTotals(approvedCommissions.map((sale) => ({ currency: sale.currency, amount: sale.commissionAmount })))} />
+        <Summary label="Incentivos pendientes" value={formatMoneyTotals(financialSales.filter((sale) => sale.commissionStatus === "pending").map((sale) => ({ currency: sale.currency, amount: sale.commissionAmount })))} />
+        <Summary label="A pagar a proveedores" value={formatMoneyTotals(pendingProviderPaymentRows.map((payment) => ({ currency: payment.currency, amount: payment.amount.toFixed(2) })))} />
       </section>
 
       <h2 className="mb-3 text-xl font-semibold">Pagos a proveedores</h2>
       {providerPaymentRows.length === 0 ? <p className="mb-8 text-muted-foreground">No hay pagos a proveedores para este período.</p> : (
         <div className="mb-8 overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Proveedor</th><th className="px-4 py-2">Unidades vendidas</th><th className="px-4 py-2">A pagar</th></tr></thead>
-            <tbody>{providerPaymentRows.map((payment) => <tr key={`${payment.provider}:${payment.currency}`} className="border-t"><td className="px-4 py-2">{payment.provider}</td><td className="px-4 py-2">{payment.sales}</td><td className="px-4 py-2">{payment.currency === "USD" ? "$" : "₡"}{payment.amount.toFixed(2)}</td></tr>)}</tbody>
+          <table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Fecha</th><th className="px-4 py-2">Proveedor / tour</th><th className="px-4 py-2">Unidades</th><th className="px-4 py-2">A pagar</th><th className="px-4 py-2">Estado</th><th className="px-4 py-2">Acción</th></tr></thead>
+            <tbody>{providerPaymentRows.map((payment) => {
+              const cancelled = payment.sale.reservationStatus === "cancelled";
+              const paid = payment.sale.providerPaymentStatus === "paid";
+              return (
+                <tr key={payment.sale.id} className="border-t">
+                  <td className="px-4 py-2">{payment.sale.tourDate ? new Date(`${payment.sale.tourDate}T12:00:00`).toLocaleDateString() : "—"}</td>
+                  <td className="px-4 py-2"><p>{payment.provider}</p><p className="text-muted-foreground">{payment.tourName}</p></td>
+                  <td className="px-4 py-2">{payment.sale.quantity}</td>
+                  <td className="px-4 py-2">{payment.currency === "USD" ? "$" : "₡"}{payment.amount.toFixed(2)}</td>
+                  <td className="px-4 py-2">
+                    {cancelled ? <Badge className={tourStatusClasses.cancelled}>Cancelado</Badge> : paid ? <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700"><CheckCircle2 className="mr-1 h-3 w-3" /> Pagado</Badge> : <Badge className="border-amber-200 bg-amber-50 text-amber-700">Pendiente</Badge>}
+                    {paid && payment.sale.providerPaymentMethod ? <p className="mt-1 text-xs text-muted-foreground">{payment.sale.providerPaymentMethod === "cash" ? "Efectivo" : "Transferencia"}</p> : null}
+                  </td>
+                  <td className="px-4 py-2">{!cancelled && !paid ? <ProviderPaymentButton saleId={payment.sale.id} /> : "—"}</td>
+                </tr>
+              );
+            })}</tbody>
           </table>
         </div>
       )}
@@ -136,7 +152,7 @@ export default async function AdminReportPage({
       <h2 className="mb-3 text-xl font-semibold">Ventas por día</h2>
       {daily.size === 0 ? <p className="mb-8 text-muted-foreground">No hay ventas para los filtros seleccionados.</p> : (
         <div className="mb-8 overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Fecha</th><th className="px-4 py-2">Ventas</th><th className="px-4 py-2">Ingresos</th><th className="px-4 py-2">Comisiones aprobadas</th></tr></thead>
+          <table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Fecha</th><th className="px-4 py-2">Ventas</th><th className="px-4 py-2">Ingresos</th><th className="px-4 py-2">Incentivos aprobados</th></tr></thead>
             <tbody>{[...daily.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([day, rows]) => <tr key={day} className="border-t"><td className="px-4 py-2">{new Date(`${day}T12:00:00`).toLocaleDateString()}</td><td className="px-4 py-2">{rows.length}</td><td className="px-4 py-2">{formatMoneyTotals(rows.map((sale) => ({ currency: sale.currency, amount: sale.grossAmount })))}</td><td className="px-4 py-2">{formatMoneyTotals(rows.filter((sale) => sale.commissionStatus === "approved").map((sale) => ({ currency: sale.currency, amount: sale.commissionAmount })))}</td></tr>)}</tbody>
           </table>
         </div>

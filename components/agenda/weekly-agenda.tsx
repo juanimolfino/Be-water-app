@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ResponsibleSelect } from "@/components/agenda/responsible-select";
 import { MarkPaidButton } from "@/components/sales/mark-paid-button";
 import { Textarea } from "@/components/ui/textarea";
 import { getSaleAgendaStatus, saleAgendaStatusClasses, saleAgendaStatusLabel } from "@/lib/sales/status";
@@ -18,7 +19,32 @@ export type AgendaEntry = {
   reservationStatus: "active" | "cancelled";
   paymentStatus: "paid" | "unpaid";
   cancellationReason: string | null;
+  assignedToUserId?: string | null;
+  assignedTo?: { fullName: string | null; email: string } | null;
   activity: { tourName: string; providerName: string; isOwnActivity: boolean };
+};
+
+export type AgendaManualItem = {
+  id: string;
+  itemDate: string;
+  title: string;
+  quantity: number | null;
+  responsibleUserId: string | null;
+  responsible: { fullName: string | null; email: string } | null;
+  notes: string | null;
+};
+
+export type AgendaNotice = {
+  id: string;
+  noticeDate: string;
+  message: string;
+  createdBy: { fullName: string | null; email: string } | null;
+};
+
+type Responsible = {
+  id: string;
+  fullName: string | null;
+  email: string;
 };
 
 function parseDate(value: string | undefined) {
@@ -40,7 +66,25 @@ function startOfWeek(date: Date) {
   return start;
 }
 
-export function WeeklyAgenda({ entries, basePath, week, cancelEndpoint }: { entries: AgendaEntry[]; basePath: string; week?: string; cancelEndpoint: string }) {
+export function WeeklyAgenda({
+  entries,
+  items = [],
+  notices = [],
+  responsibles = [],
+  basePath,
+  week,
+  cancelEndpoint,
+  canAssignResponsible = false
+}: {
+  entries: AgendaEntry[];
+  items?: AgendaManualItem[];
+  notices?: AgendaNotice[];
+  responsibles?: Responsible[];
+  basePath: string;
+  week?: string;
+  cancelEndpoint: string;
+  canAssignResponsible?: boolean;
+}) {
   const router = useRouter();
   const [cancelling, setCancelling] = useState<AgendaEntry | null>(null);
   const [reason, setReason] = useState("");
@@ -87,7 +131,10 @@ export function WeeklyAgenda({ entries, basePath, week, cancelEndpoint }: { entr
 
       <div className="grid overflow-hidden rounded-lg border md:grid-cols-7">
         {days.map((day) => {
+          const key = dateKey(day);
           const dayEntries = entries.filter((entry) => entry.tourDate === dateKey(day));
+          const dayItems = items.filter((item) => item.itemDate === key);
+          const dayNotices = notices.filter((notice) => notice.noticeDate === key);
           const ownEntries = dayEntries.filter((entry) => entry.activity.isOwnActivity);
           const thirdPartyEntries = dayEntries.filter((entry) => !entry.activity.isOwnActivity);
           const today = dateKey(day) === dateKey(new Date());
@@ -97,18 +144,60 @@ export function WeeklyAgenda({ entries, basePath, week, cancelEndpoint }: { entr
                 <p className="text-xs font-semibold uppercase text-muted-foreground">{day.toLocaleDateString(undefined, { weekday: "short" })}</p>
                 <p className={today ? "grid h-8 w-8 place-items-center rounded-full bg-primary text-sm font-semibold text-primary-foreground" : "text-2xl font-semibold"}>{day.getDate()}</p>
               </div>
+              {dayNotices.length > 0 ? (
+                <div className="mb-3 space-y-2">
+                  {dayNotices.map((notice) => (
+                    <div key={notice.id} className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-950">
+                      <p>{notice.message}</p>
+                      {notice.createdBy ? <p className="mt-1 text-[10px] text-amber-800">{notice.createdBy.fullName ?? notice.createdBy.email}</p> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               <div className="space-y-2">
+                {dayItems.length > 0 ? (
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Fuera de ventas</p>
+                ) : null}
+                {dayItems.map((item) => (
+                  <ManualBlock
+                    key={item.id}
+                    item={item}
+                    responsibles={responsibles}
+                    canAssignResponsible={canAssignResponsible}
+                  />
+                ))}
+                {dayItems.length > 0 && dayEntries.length > 0 ? (
+                  <div className="border-t-2 border-dashed pt-2" />
+                ) : null}
                 {ownEntries.length > 0 ? (
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Propias</p>
                 ) : null}
-                {ownEntries.map((entry) => <ReservationBlock key={entry.id} entry={entry} endpoint={cancelEndpoint} onCancel={() => { setCancelling(entry); setReason(""); setError(null); }} />)}
+                {ownEntries.map((entry) => (
+                  <ReservationBlock
+                    key={entry.id}
+                    entry={entry}
+                    endpoint={cancelEndpoint}
+                    responsibles={responsibles}
+                    canAssignResponsible={canAssignResponsible}
+                    onCancel={() => { setCancelling(entry); setReason(""); setError(null); }}
+                  />
+                ))}
                 {ownEntries.length > 0 && thirdPartyEntries.length > 0 ? (
                   <div className="border-t-2 border-dashed pt-2" />
                 ) : null}
                 {thirdPartyEntries.length > 0 ? (
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Terceros</p>
                 ) : null}
-                {thirdPartyEntries.map((entry) => <ReservationBlock key={entry.id} entry={entry} endpoint={cancelEndpoint} onCancel={() => { setCancelling(entry); setReason(""); setError(null); }} />)}
+                {thirdPartyEntries.map((entry) => (
+                  <ReservationBlock
+                    key={entry.id}
+                    entry={entry}
+                    endpoint={cancelEndpoint}
+                    responsibles={responsibles}
+                    canAssignResponsible={canAssignResponsible}
+                    onCancel={() => { setCancelling(entry); setReason(""); setError(null); }}
+                  />
+                ))}
               </div>
             </section>
           );
@@ -133,7 +222,45 @@ export function WeeklyAgenda({ entries, basePath, week, cancelEndpoint }: { entr
   );
 }
 
-function ReservationBlock({ entry, endpoint, onCancel }: { entry: AgendaEntry; endpoint: string; onCancel: () => void }) {
+function ManualBlock({
+  item,
+  responsibles,
+  canAssignResponsible
+}: {
+  item: AgendaManualItem;
+  responsibles: Responsible[];
+  canAssignResponsible: boolean;
+}) {
+  return (
+    <article className="border-l-4 border-sky-500 bg-sky-50 p-2 text-xs text-sky-950">
+      <p className="font-semibold">{item.title}</p>
+      {item.quantity ? <p>{item.quantity} {item.quantity === 1 ? "persona" : "personas"}</p> : null}
+      {item.responsible ? <p className="text-sky-800">Responsable: {item.responsible.fullName ?? item.responsible.email}</p> : null}
+      {item.notes ? <p className="mt-1 text-sky-800">{item.notes}</p> : null}
+      {canAssignResponsible ? (
+        <ResponsibleSelect
+          value={item.responsibleUserId}
+          responsibles={responsibles}
+          endpoint={`/api/admin/agenda/items/${item.id}/responsible`}
+        />
+      ) : null}
+    </article>
+  );
+}
+
+function ReservationBlock({
+  entry,
+  endpoint,
+  responsibles,
+  canAssignResponsible,
+  onCancel
+}: {
+  entry: AgendaEntry;
+  endpoint: string;
+  responsibles: Responsible[];
+  canAssignResponsible: boolean;
+  onCancel: () => void;
+}) {
   const cancelled = entry.reservationStatus === "cancelled";
   const agendaStatus = getSaleAgendaStatus(entry.reservationStatus, entry.paymentStatus);
   return (
@@ -144,9 +271,18 @@ function ReservationBlock({ entry, endpoint, onCancel }: { entry: AgendaEntry; e
       </div>
       <p>{entry.quantity} {entry.quantity === 1 ? "persona" : "personas"} · {entry.activity.isOwnActivity ? "Propia" : "Tercero"}</p>
       <p className="text-muted-foreground">{entry.customerName ?? "Cliente sin nombre"}{entry.customerPhone ? ` · ${entry.customerPhone}` : ""}</p>
+      {entry.assignedTo ? <p className="text-muted-foreground">Responsable: {entry.assignedTo.fullName ?? entry.assignedTo.email}</p> : null}
       <p className="mt-1 font-medium">{saleAgendaStatusLabel[agendaStatus]}</p>
       {agendaStatus === "unpaid" ? <MarkPaidButton saleId={entry.id} endpoint={endpoint} /> : null}
       {cancelled && entry.cancellationReason ? <p className="mt-1 text-muted-foreground">{entry.cancellationReason}</p> : null}
+      {canAssignResponsible ? (
+        <ResponsibleSelect
+          value={entry.assignedToUserId ?? null}
+          responsibles={responsibles}
+          endpoint={`/api/admin/sales/${entry.id}/responsible`}
+          disabled={cancelled}
+        />
+      ) : null}
     </article>
   );
 }

@@ -10,7 +10,7 @@ const links = [
   { href: "/admin/sellers", label: "Vendedores" },
   { href: "/admin/sales", label: "Ventas" },
   { href: "/admin/agenda", label: "Agenda" },
-  { href: "/admin/report", label: "Período" },
+  { href: "/admin/report", label: "Ingresos" },
   { href: "/admin/expenses", label: "Gastos" },
   { href: "/admin/profits", label: "Ganancias" },
   { href: "/admin/settings", label: "Configuración" }

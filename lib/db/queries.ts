@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import {
+  agendaItems,
+  agendaNotices,
   activities,
   credits,
   diveCenters,
@@ -17,6 +19,7 @@ import {
   type JobType,
   type PaymentMethod,
   type PaymentStatus,
+  type ProviderPaymentStatus,
   type Role
 } from "@/lib/db/schema";
 import { sendPurchaseConfirmationEmail, sendWelcomeEmail } from "@/lib/email/send";
@@ -398,7 +401,7 @@ export async function updateCommissionPaymentDays(diveCenterId: string, paymentD
 export async function listSellersForCenter(diveCenterId: string) {
   return getDb().query.users.findMany({
     where: and(eq(users.diveCenterId, diveCenterId), eq(users.role, "seller")),
-    orderBy: desc(users.createdAt)
+    orderBy: asc(users.fullName)
   });
 }
 
@@ -476,7 +479,7 @@ export async function listSalesForCenter(diveCenterId: string, status?: "pending
       ? and(eq(sales.diveCenterId, diveCenterId), eq(sales.commissionStatus, status), eq(sales.reservationStatus, "active"))
       : eq(sales.diveCenterId, diveCenterId),
     orderBy: desc(sales.saleDate),
-    with: { activity: true, seller: true }
+    with: { activity: true, seller: true, assignedTo: true, providerPaidBy: true }
   });
 }
 
@@ -484,7 +487,7 @@ export async function listSalesForSeller(sellerId: string) {
   return getDb().query.sales.findMany({
     where: eq(sales.sellerId, sellerId),
     orderBy: desc(sales.saleDate),
-    with: { activity: true }
+    with: { activity: true, assignedTo: true }
   });
 }
 
@@ -549,6 +552,138 @@ export async function markSalePaid(input: { saleId: string; diveCenterId: string
     .set({ paymentStatus: "paid", updatedAt: new Date() })
     .where(and(...conditions))
     .returning();
+}
+
+export async function assignSaleResponsible(input: { saleId: string; diveCenterId: string; responsibleUserId?: string | null }) {
+  if (input.responsibleUserId) {
+    const responsible = await getDb().query.users.findFirst({
+      columns: { id: true },
+      where: and(eq(users.id, input.responsibleUserId), eq(users.diveCenterId, input.diveCenterId), eq(users.role, "seller"))
+    });
+    if (!responsible) return [];
+  }
+
+  return getDb()
+    .update(sales)
+    .set({ assignedToUserId: input.responsibleUserId || null, updatedAt: new Date() })
+    .where(and(eq(sales.id, input.saleId), eq(sales.diveCenterId, input.diveCenterId)))
+    .returning();
+}
+
+export async function markProviderPaymentPaid(input: {
+  saleId: string;
+  diveCenterId: string;
+  method: ExpensePaymentMethod;
+  paidByUserId: string;
+}) {
+  const sale = await getDb().query.sales.findFirst({
+    where: and(eq(sales.id, input.saleId), eq(sales.diveCenterId, input.diveCenterId)),
+    with: { activity: true }
+  });
+  if (!sale || sale.activity.isOwnActivity || !sale.activity.netPrice) return [];
+
+  return getDb()
+    .update(sales)
+    .set({
+      providerPaymentStatus: "paid" satisfies ProviderPaymentStatus,
+      providerPaymentMethod: input.method,
+      providerPaidByUserId: input.paidByUserId,
+      providerPaidAt: new Date(),
+      updatedAt: new Date()
+    })
+    .where(
+      and(
+        eq(sales.id, input.saleId),
+        eq(sales.diveCenterId, input.diveCenterId),
+        eq(sales.reservationStatus, "active"),
+        eq(sales.providerPaymentStatus, "pending")
+      )
+    )
+    .returning();
+}
+
+// --- Agenda -----------------------------------------------------------
+
+export async function listAgendaItemsForCenter(diveCenterId: string) {
+  return getDb().query.agendaItems.findMany({
+    where: eq(agendaItems.diveCenterId, diveCenterId),
+    orderBy: [asc(agendaItems.itemDate), asc(agendaItems.createdAt)],
+    with: { responsible: true, createdBy: true }
+  });
+}
+
+export async function listAgendaNoticesForCenter(diveCenterId: string) {
+  return getDb().query.agendaNotices.findMany({
+    where: eq(agendaNotices.diveCenterId, diveCenterId),
+    orderBy: [asc(agendaNotices.noticeDate), asc(agendaNotices.createdAt)],
+    with: { createdBy: true }
+  });
+}
+
+export async function createAgendaItem(input: {
+  diveCenterId: string;
+  itemDate: string;
+  title: string;
+  quantity?: number | null;
+  responsibleUserId?: string | null;
+  notes?: string | null;
+  createdByUserId: string;
+}) {
+  if (input.responsibleUserId) {
+    const responsible = await getDb().query.users.findFirst({
+      columns: { id: true },
+      where: and(eq(users.id, input.responsibleUserId), eq(users.diveCenterId, input.diveCenterId), eq(users.role, "seller"))
+    });
+    if (!responsible) return null;
+  }
+
+  const [item] = await getDb()
+    .insert(agendaItems)
+    .values({
+      diveCenterId: input.diveCenterId,
+      itemDate: input.itemDate,
+      title: input.title,
+      quantity: input.quantity ?? null,
+      responsibleUserId: input.responsibleUserId || null,
+      notes: input.notes || null,
+      createdByUserId: input.createdByUserId
+    })
+    .returning();
+  return item;
+}
+
+export async function assignAgendaItemResponsible(input: { itemId: string; diveCenterId: string; responsibleUserId?: string | null }) {
+  if (input.responsibleUserId) {
+    const responsible = await getDb().query.users.findFirst({
+      columns: { id: true },
+      where: and(eq(users.id, input.responsibleUserId), eq(users.diveCenterId, input.diveCenterId), eq(users.role, "seller"))
+    });
+    if (!responsible) return [];
+  }
+
+  return getDb()
+    .update(agendaItems)
+    .set({ responsibleUserId: input.responsibleUserId || null, updatedAt: new Date() })
+    .where(and(eq(agendaItems.id, input.itemId), eq(agendaItems.diveCenterId, input.diveCenterId)))
+    .returning();
+}
+
+export async function createAgendaNotice(input: {
+  diveCenterId: string;
+  noticeDate: string;
+  message: string;
+  createdByUserId: string;
+}) {
+  const [notice] = await getDb()
+    .insert(agendaNotices)
+    .values({
+      diveCenterId: input.diveCenterId,
+      noticeDate: input.noticeDate,
+      message: input.message,
+      createdByUserId: input.createdByUserId
+    })
+    .returning();
+  return notice;
 }
 
 // --- Expenses ---------------------------------------------------------
