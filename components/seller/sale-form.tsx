@@ -15,7 +15,19 @@ const paymentMethods = [
   { value: "referral", label: "Referenciado" }
 ] as const;
 
-export function SaleForm({ activities, actor = "seller", collapsible = false }: { activities: Activity[]; actor?: "seller" | "admin"; collapsible?: boolean }) {
+export function SaleForm({
+  activities,
+  actor = "seller",
+  collapsible = false,
+  onSuccess,
+  onCancel
+}: {
+  activities: Activity[];
+  actor?: "seller" | "admin";
+  collapsible?: boolean;
+  onSuccess?: () => void;
+  onCancel?: () => void;
+}) {
   const router = useRouter();
   const isAdminSale = actor === "admin";
   const [open, setOpen] = useState(!collapsible);
@@ -95,6 +107,7 @@ export function SaleForm({ activities, actor = "seller", collapsible = false }: 
     setNotes("");
     if (collapsible) setOpen(false);
     router.refresh();
+    onSuccess?.();
   }
 
   if (activities.length === 0) {
@@ -220,8 +233,8 @@ export function SaleForm({ activities, actor = "seller", collapsible = false }: 
       <Button type="submit" disabled={loading}>
         {loading ? "Guardando..." : "Registrar venta"}
       </Button>
-      {collapsible ? (
-        <Button type="button" variant="outline" disabled={loading} onClick={() => setOpen(false)}>
+      {collapsible || onCancel ? (
+        <Button type="button" variant="outline" disabled={loading} onClick={() => (onCancel ? onCancel() : setOpen(false))}>
           Cancelar
         </Button>
       ) : null}
