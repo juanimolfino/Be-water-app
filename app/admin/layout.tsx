@@ -3,16 +3,17 @@ import { LogOut } from "lucide-react";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { Button } from "@/components/ui/button";
 import { getCurrentProfile, homePathForRole } from "@/lib/auth/roles";
-import { getDiveCenterById, listSalesForCenter } from "@/lib/db/queries";
+import { countPendingProviderPaymentsForCenter, getDiveCenterById, listSalesForCenter } from "@/lib/db/queries";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
   if (profile.role !== "admin") redirect(homePathForRole(profile.role, profile.diveCenterId));
   if (!profile.diveCenterId) redirect("/login?error=Tu usuario no tiene un centro asignado. Contactá al superadmin.");
 
-  const [center, pendingSales] = await Promise.all([
+  const [center, pendingSales, pendingProviderPaymentsCount] = await Promise.all([
     getDiveCenterById(profile.diveCenterId),
-    listSalesForCenter(profile.diveCenterId, "pending")
+    listSalesForCenter(profile.diveCenterId, "pending"),
+    countPendingProviderPaymentsForCenter(profile.diveCenterId)
   ]);
 
   return (
@@ -21,7 +22,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm text-muted-foreground">{center?.name ?? "Centro de buceo"}</p>
-            <AdminNav pendingSalesCount={pendingSales.length} />
+            <AdminNav pendingSalesCount={pendingSales.length} pendingProviderPaymentsCount={pendingProviderPaymentsCount} />
           </div>
           <form action="/logout" method="post">
             <Button variant="ghost" size="sm">

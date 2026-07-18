@@ -560,6 +560,24 @@ export async function listSalesForCenter(diveCenterId: string, status?: "pending
   });
 }
 
+export async function countPendingProviderPaymentsForCenter(diveCenterId: string) {
+  const [row] = await getDb()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(sales)
+    .innerJoin(activities, eq(sales.activityId, activities.id))
+    .where(
+      and(
+        eq(sales.diveCenterId, diveCenterId),
+        eq(sales.reservationStatus, "active"),
+        eq(sales.providerPaymentStatus, "pending"),
+        eq(activities.isOwnActivity, false),
+        sql`${activities.netPrice} is not null`
+      )
+    );
+
+  return row?.count ?? 0;
+}
+
 export async function listSalesForSeller(sellerId: string) {
   return getDb().query.sales.findMany({
     where: eq(sales.sellerId, sellerId),

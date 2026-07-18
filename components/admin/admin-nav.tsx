@@ -17,7 +17,13 @@ const links = [
   { href: "/admin/settings", label: "Configuración" }
 ];
 
-export function AdminNav({ pendingSalesCount = 0 }: { pendingSalesCount?: number }) {
+export function AdminNav({
+  pendingSalesCount = 0,
+  pendingProviderPaymentsCount = 0
+}: {
+  pendingSalesCount?: number;
+  pendingProviderPaymentsCount?: number;
+}) {
   const pathname = usePathname();
 
   return (
@@ -38,6 +44,9 @@ export function AdminNav({ pendingSalesCount = 0 }: { pendingSalesCount?: number
               {link.label}
               {link.href === "/admin/sales" && pendingSalesCount > 0 ? (
                 <AlertCircle className="h-3.5 w-3.5 text-amber-600" aria-label={`${pendingSalesCount} ventas pendientes`} />
+              ) : null}
+              {link.href === "/admin/report" && pendingProviderPaymentsCount > 0 ? (
+                <AlertCircle className="h-3.5 w-3.5 text-amber-600" aria-label={`${pendingProviderPaymentsCount} pagos a proveedores pendientes`} />
               ) : null}
             </span>
           </Link>
