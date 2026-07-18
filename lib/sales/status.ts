@@ -32,15 +32,15 @@ export const tourStatusLabel: Record<TourStatus, string> = {
 };
 
 export const tourStatusClasses: Record<TourStatus, string> = {
-  cancelled: "border-destructive bg-destructive/10 text-destructive",
-  done: "border-emerald-600 bg-emerald-50 text-emerald-700",
-  upcoming: "border-amber-500 bg-amber-50 text-amber-700"
+  cancelled: "border-transparent bg-danger-bg text-danger",
+  done: "border-transparent bg-success-bg text-success",
+  upcoming: "border-transparent bg-warning-bg text-warning"
 };
 
 export const commissionStatusClasses: Record<CommissionStatus, string> = {
-  approved: "text-emerald-600",
-  rejected: "text-destructive",
-  pending: "text-amber-600"
+  approved: "text-success",
+  rejected: "text-danger",
+  pending: "text-warning"
 };
 
 export const commissionStatusLabel: Record<CommissionStatus, string> = {
@@ -50,9 +50,9 @@ export const commissionStatusLabel: Record<CommissionStatus, string> = {
 };
 
 export const commissionStatusBadgeClasses: Record<CommissionStatus, string> = {
-  approved: "border-emerald-600 bg-emerald-50 text-emerald-700",
-  rejected: "border-destructive bg-destructive/10 text-destructive",
-  pending: "border-amber-500 bg-amber-50 text-amber-700"
+  approved: "border-transparent bg-success-bg text-success",
+  rejected: "border-transparent bg-danger-bg text-danger",
+  pending: "border-transparent bg-warning-bg text-warning"
 };
 
 export type SaleAgendaStatus = "cancelled" | "unpaid" | "paid";
@@ -74,7 +74,7 @@ export const saleAgendaStatusLabel: Record<SaleAgendaStatus, string> = {
 };
 
 export const saleAgendaStatusClasses: Record<SaleAgendaStatus, string> = {
-  cancelled: "border-destructive bg-destructive/10",
-  unpaid: "border-destructive bg-destructive/10",
-  paid: "border-emerald-600 bg-emerald-50"
+  cancelled: "border-danger/40 bg-danger-bg",
+  unpaid: "border-danger/40 bg-danger-bg",
+  paid: "border-success/40 bg-success-bg"
 };

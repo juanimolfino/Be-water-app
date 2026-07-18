@@ -26,12 +26,37 @@ const config: Config = {
         destructive: "hsl(var(--destructive))",
         "destructive-foreground": "hsl(var(--destructive-foreground))",
         card: "hsl(var(--card))",
-        "card-foreground": "hsl(var(--card-foreground))"
+        "card-foreground": "hsl(var(--card-foreground))",
+        // Marca (océano)
+        abyss: "hsl(var(--bw-abyss))",
+        deep: "hsl(var(--bw-deep))",
+        sea: "hsl(var(--bw-sea))",
+        aqua: "hsl(var(--bw-aqua))",
+        "aqua-2": "hsl(var(--bw-aqua-2))",
+        foam: "hsl(var(--bw-foam))",
+        // Estados
+        success: "hsl(var(--success))",
+        "success-bg": "hsl(var(--success-bg))",
+        warning: "hsl(var(--warning))",
+        "warning-bg": "hsl(var(--warning-bg))",
+        danger: "hsl(var(--danger))",
+        "danger-bg": "hsl(var(--danger-bg))",
+        info: "hsl(var(--info))",
+        "info-bg": "hsl(var(--info-bg))",
+        course: "hsl(var(--course))",
+        "course-bg": "hsl(var(--course-bg))"
+      },
+      fontFamily: {
+        sans: ["var(--font-manrope)", "system-ui", "-apple-system", "sans-serif"]
       },
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)"
+        md: "calc(var(--radius) - 3px)",
+        sm: "calc(var(--radius) - 6px)"
+      },
+      boxShadow: {
+        card: "var(--shadow-card)",
+        btn: "var(--shadow-btn)"
       }
     }
   },

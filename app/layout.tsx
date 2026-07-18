@@ -1,28 +1,34 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Manrope } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const manrope = Manrope({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-manrope"
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
   title: {
-    default: "AI SaaS Boilerplate",
-    template: "%s | AI SaaS Boilerplate"
+    default: "Be Water Diving — Panel de gestión",
+    template: "%s | Be Water Diving"
   },
-  description: "Production-ready AI micro-SaaS starter with auth, billing, async AI jobs, credits, subscriptions, and SEO.",
+  description: "Panel interno de Be Water Diving: reservas, cursos SSI, cupos de barco, equipo y clientes en un solo lugar.",
+  icons: { icon: "/favicon.png" },
+  robots: { index: false, follow: false },
   openGraph: {
-    title: "AI SaaS Boilerplate",
-    description: "Launch AI micro-SaaS products with the boring production pieces already wired.",
+    title: "Be Water Diving — Panel de gestión",
+    description: "Herramienta interna del centro de buceo Be Water Diving, Tamarindo (Costa Rica).",
     url: "/",
-    siteName: "AI SaaS Boilerplate",
+    siteName: "Be Water Diving",
     type: "website"
   }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="es" className={manrope.variable}>
       <body className="min-h-screen font-sans antialiased">{children}</body>
     </html>
   );
