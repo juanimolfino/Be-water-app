@@ -124,7 +124,7 @@ export default async function AdminProfitsPage({
       <form className="mb-6 grid gap-4 rounded-lg border bg-card p-5 md:grid-cols-2">
         <label className="text-sm font-medium">Desde<input className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm" type="date" name="from" defaultValue={from} /></label>
         <label className="text-sm font-medium">Hasta<input className="mt-1 flex h-10 w-full rounded-md border bg-background px-3 text-sm" type="date" name="to" defaultValue={to} /></label>
-        <div className="flex items-end gap-2 md:col-span-2"><button className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground" type="submit">Aplicar filtros</button></div>
+        <div className="flex items-end gap-2 md:col-span-2"><button className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-white" type="submit">Aplicar filtros</button></div>
       </form>
 
       <p className="mb-3 text-sm text-muted-foreground">Período analizado: {periodLabel}</p>

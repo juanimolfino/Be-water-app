@@ -176,7 +176,7 @@ export function WeeklyAgenda({
             <section key={dateKey(day)} className="min-h-72 border-b p-3 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0">
               <div className="mb-3 flex items-baseline justify-between">
                 <p className="text-xs font-semibold uppercase text-muted-foreground">{day.toLocaleDateString(undefined, { weekday: "short" })}</p>
-                <p className={today ? "grid h-8 w-8 place-items-center rounded-full bg-primary text-sm font-semibold text-primary-foreground" : "text-2xl font-semibold"}>{day.getDate()}</p>
+                <p className={today ? "grid h-10 w-10 place-items-center rounded-full bg-primary text-2xl font-semibold text-primary-foreground" : "text-2xl font-semibold"}>{day.getDate()}</p>
               </div>
               <div className="space-y-2">
                 {dayItems.length > 0 ? (
