@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, ClipboardList, Star, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DayCapacityToggle } from "@/components/agenda/day-capacity-toggle";
 import { ResponsibleSelect } from "@/components/agenda/responsible-select";
 import { MarkPaidButton } from "@/components/sales/mark-paid-button";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,26 +71,29 @@ function startOfWeek(date: Date) {
   return start;
 }
 
-// Un buzo ocupa más lugar en el bote que un snorkel, por eso se
+// Un buzo ocupa más lugar en el bote que un snorkel o un pasajero, por eso se
 // cuentan por separado según la categoría real de la actividad.
 function ownDayCounts(ownEntries: AgendaEntry[], ownItems: AgendaManualItem[]) {
   let snorkelQty = 0;
   let diverQty = 0;
+  let passengerQty = 0;
   const responsibleIds = new Set<string>();
 
   for (const entry of ownEntries) {
     if (entry.reservationStatus === "cancelled") continue;
     if (entry.activity.category === "snorkel") snorkelQty += entry.quantity;
     else if (entry.activity.category === "buceo") diverQty += entry.quantity;
+    else if (entry.activity.category === "pasajero") passengerQty += entry.quantity;
     if (entry.assignedStaffId) responsibleIds.add(entry.assignedStaffId);
   }
   for (const item of ownItems) {
     const qty = item.quantity ?? 0;
     if (item.activity?.category === "snorkel") snorkelQty += qty;
     else if (item.activity?.category === "buceo") diverQty += qty;
+    else if (item.activity?.category === "pasajero") passengerQty += qty;
     if (item.responsibleStaffId) responsibleIds.add(item.responsibleStaffId);
   }
-  return { snorkelQty, diverQty, responsibleCount: responsibleIds.size };
+  return { snorkelQty, diverQty, passengerQty, responsibleCount: responsibleIds.size };
 }
 
 const categoryLabels: Record<string, string> = { buceo: "Buceo", snorkel: "Snorkel", pasajero: "Pasajero", otro: "Otro" };
@@ -165,18 +169,22 @@ export function WeeklyAgenda({
   items = [],
   notices = [],
   responsibles = [],
+  fullDays = [],
   basePath,
   week,
   cancelEndpoint,
+  capacityEndpoint,
   canAssignResponsible = false
 }: {
   entries: AgendaEntry[];
   items?: AgendaManualItem[];
   notices?: AgendaNotice[];
   responsibles?: Responsible[];
+  fullDays?: string[];
   basePath: string;
   week?: string;
   cancelEndpoint: string;
+  capacityEndpoint: string;
   canAssignResponsible?: boolean;
 }) {
   const router = useRouter();
@@ -187,6 +195,7 @@ export function WeeklyAgenda({
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [deletingNoticeId, setDeletingNoticeId] = useState<string | null>(null);
   const [reportDayKey, setReportDayKey] = useState<string | null>(null);
+  const fullDaySet = new Set(fullDays);
   const start = startOfWeek(parseDate(week));
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(start);
@@ -266,7 +275,7 @@ export function WeeklyAgenda({
           const ownEntries = dayEntries.filter((entry) => entry.activity.isOwnActivity);
           const thirdPartyEntries = dayEntries.filter((entry) => !entry.activity.isOwnActivity);
           const ownItems = dayItems.filter((item) => item.activity?.isOwnActivity);
-          const { snorkelQty, diverQty, responsibleCount } = ownDayCounts(ownEntries, ownItems);
+          const { snorkelQty, diverQty, passengerQty, responsibleCount } = ownDayCounts(ownEntries, ownItems);
           const today = dateKey(day) === dateKey(new Date());
           return (
             <section key={dateKey(day)} className="min-h-72 border-b p-3 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0">
@@ -355,11 +364,25 @@ export function WeeklyAgenda({
                     ))}
                   </div>
                 ) : null}
-                {snorkelQty > 0 || diverQty > 0 ? (
-                  <div className="rounded-md border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
+                {snorkelQty > 0 || diverQty > 0 || passengerQty > 0 || fullDaySet.has(key) ? (
+                  <div
+                    className={`rounded-md border px-2 py-1.5 text-[11px] ${
+                      fullDaySet.has(key) ? "border-red-600 bg-red-50 text-red-900" : "bg-muted/40 text-muted-foreground"
+                    }`}
+                  >
                     <p className="mb-1 font-semibold uppercase tracking-wide">Cupo propias del centro</p>
-                    <p>Buzos: <span className="font-semibold text-foreground">{diverQty}</span> · Snorkel: <span className="font-semibold text-foreground">{snorkelQty}</span></p>
+                    <p>
+                      Buzos: <span className="font-semibold text-foreground">{diverQty}</span> · Snorkel:{" "}
+                      <span className="font-semibold text-foreground">{snorkelQty}</span>
+                      {passengerQty > 0 ? (
+                        <>
+                          {" "}
+                          · Pasajeros: <span className="font-semibold text-foreground">{passengerQty}</span>
+                        </>
+                      ) : null}
+                    </p>
                     <p>Responsables asignados: <span className="font-semibold text-foreground">{responsibleCount}</span></p>
+                    <DayCapacityToggle dateKey={key} isFull={fullDaySet.has(key)} endpoint={capacityEndpoint} />
                   </div>
                 ) : null}
               </div>

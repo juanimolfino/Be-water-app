@@ -175,6 +175,32 @@ Ventas, Agenda, Período, Gastos, Configuración)
   calendar-shaped cancel UI from the one in `components/sales/cancel-sale-button.tsx` (§6.6) — same
   API, different component, not deduplicated (different layout needs: one modal shared across a
   week grid vs. one self-contained button per table row).
+
+  **Note:** this repo has grown a lot of agenda-adjacent surface since this doc's last full pass
+  (staff members/responsables, manual "ventas por fuera" agenda items, agenda notices, provider
+  payments, a day report modal, `activities.category`) that isn't documented here yet — read
+  `components/agenda/weekly-agenda.tsx` directly for those, this section only covers what's below.
+
+  **Cupo (capacity) box**: each day cell, when there's at least one active own-activity
+  reservation/item OR the day is flagged full, shows a small box aggregating **quantity by
+  `activities.category`** across both `sales` and manually-added `agenda_items` for that day —
+  `ownDayCounts()` in `weekly-agenda.tsx`. It tracks `buceo`, `snorkel`, and `pasajero` separately
+  (a diver takes more boat space than a snorkeler or a passenger) and only renders the "Pasajeros"
+  line when that count is > 0. **This is derived/computed, not stored** — no schema involved in
+  showing the numbers.
+
+  **"Full" toggle**: a day can be manually flagged full by anyone with agenda access (admin or
+  seller — same `["admin", "seller"]` guard as `POST /api/admin/agenda/items`), turning the whole
+  cupo box red. Unlike the counts above, this genuinely needs persistence (shared across
+  admin/seller, survives refresh) — backed by `agenda_capacity_flags` (`diveCenterId`, `flagDate`,
+  unique together). **Row existence is the flag** — there's no `isFull` boolean column; marking
+  full inserts the row (`markAgendaDayFull()`, `onConflictDoNothing` so a double-click is a no-op),
+  unmarking deletes it (`unmarkAgendaDayFull()`). Both actions go through one shared endpoint,
+  `POST`/`DELETE /api/admin/agenda/capacity` (reused from the seller page too, same pattern as
+  `itemEndpoint` already does for agenda items — don't add a `/api/seller/...` duplicate for this).
+  `components/agenda/day-capacity-toggle.tsx` is the button; it's scoped to the **whole day's**
+  own-activity cupo, not per-category — that was an explicit product decision (asked, not assumed)
+  when this shipped, not a simplification to revisit casually.
 - `/admin/report` (`app/admin/report/page.tsx`): the payment-period report — a quick-filter row of
   the last 6 closed payment periods plus a manual date/activity/provider filter form, revenue/
   commission/provider-payment summaries, daily breakdown, full sale detail table. See §6.4.
@@ -407,7 +433,15 @@ Generate with `npm run db:generate` after editing `lib/db/schema.ts`, apply with
 | `0007_amazing_the_call` | `sales.tourDate`. |
 | `0008_sloppy_aaron_stack` | `reservation_status` enum + cancellation fields on `sales`. |
 | `0009_overconfident_cyclops` | `payment_status` enum (`paid`/`unpaid`) + `sales.paymentStatus`, default `paid`. |
-| `0010_overconfident_raider` | `expense_payment_method` enum + `expense_categories`/`expenses` tables. **Generated but not yet applied** — batch this with the next `db:migrate` run. |
+| `0010_overconfident_raider` | `expense_payment_method` enum + `expense_categories`/`expenses` tables. |
+| `0011_orange_spiral` | `provider_payment_status` enum + provider-payment fields on `sales`; `agenda_items`, `agenda_notices` tables. |
+| `0012_motionless_deadpool` | `staff_role`/`staff_affiliation` enums + `staff_members` table; `sales.assignedStaffId`, `agendaItems.responsibleStaffId`/`activityId`. |
+| `0013_hard_magma` | `users.active`. |
+| `0014_nifty_arachne` | Added `via_link`/`referral` to `payment_method`. |
+| `0015_wooden_maestro` | `agendaItems.active`. |
+| `0016_amused_forge` | `agendaItems.customerName`/`customerPhone`/`isWeTravelSale`. |
+| `0017_tired_stranger` | `activity_category` enum + `activities.category`. |
+| `0018_nebulous_slayback` | `agenda_capacity_flags` table (day-level "full" flag, §5's cupo box). **Generated but not yet applied** — batch with the next `db:migrate` run. |
 
 After any schema change in production: run the migration against `DATABASE_URL`, then re-apply
 `lib/db/rls.sql` if a new table was added.
@@ -442,7 +476,12 @@ Everything else in `.env.example` (`STRIPE_*`, `MERCADOPAGO_*`, `FAL_KEY`, `OPEN
 `FREE_SIGNUP_CREDITS`, `FREE_MONTHLY_CREDITS`, `PRO_MONTHLY_CREDITS`, `MAX_CONCURRENT_JOBS`)
 belongs to the legacy boilerplate (§8) and is not required in production.
 
-## 10. Full route map (current `npm run build` output)
+## 10. Full route map
+
+**This section is stale** relative to the actual app (missing `/admin/profits`, staff/agenda-item/
+agenda-notice/provider-payment routes, sellers `[id]`, etc. added since this doc's last full
+pass) — run `npm run build` for the authoritative current list rather than trusting this fully.
+Kept here for the routes it does still get right, plus newly added ones:
 
 Pages:
 - `/` marketing landing (legacy), `/pricing` (legacy).
@@ -463,6 +502,7 @@ API routes:
   `POST /api/admin/sales/[id]/cancel`, `POST /api/admin/sales/[id]/mark-paid`
 - `POST /api/admin/expense-categories`, `DELETE /api/admin/expense-categories/[id]`
 - `POST /api/admin/expenses`
+- `POST`/`DELETE /api/admin/agenda/capacity` (day-full toggle, shared by admin + seller pages)
 - `PATCH /api/admin/settings/payment-days`
 - `POST /api/seller/sales`, `POST /api/seller/sales/[id]/cancel`,
   `POST /api/seller/sales/[id]/mark-paid`
