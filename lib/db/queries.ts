@@ -14,6 +14,7 @@ import {
   subscriptions,
   transactions,
   users,
+  type ActivityCategory,
   type Currency,
   type CommissionStatus,
   type ExpensePaymentMethod,
@@ -306,6 +307,7 @@ export async function listActivitiesForCenter(diveCenterId: string) {
 type ActivityDetails = {
   providerName: string;
   isOwnActivity: boolean;
+  category: ActivityCategory;
   tourName: string;
   rackPrice?: string;
   netPrice?: string;
@@ -329,6 +331,7 @@ function activityValues(input: ActivityDetails) {
   return {
     providerName: input.providerName,
     isOwnActivity: input.isOwnActivity,
+    category: input.category,
     tourName: input.tourName,
     rackPrice: input.rackPrice || null,
     netPrice: input.netPrice || null,

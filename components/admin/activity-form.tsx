@@ -9,9 +9,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { calculateThirdPartySellerCommission } from "@/lib/activities/pricing";
 import type { Activity } from "@/lib/db/schema";
 
+const ownCategories = [
+  { value: "buceo", label: "Buceo" },
+  { value: "snorkel", label: "Snorkel" },
+  { value: "pasajero", label: "Pasajero" }
+] as const;
+
+const thirdPartyCategories = [
+  { value: "catamaran", label: "Catamarán" },
+  { value: "atv", label: "ATV" },
+  { value: "tirolesa", label: "Tirolesa" },
+  { value: "otro", label: "Otro" }
+] as const;
+
 const initialState = {
   providerName: "",
   isOwnActivity: "own" as "own" | "third_party",
+  category: "buceo" as string,
   tourName: "",
   rackPrice: "",
   netPrice: "",
@@ -36,6 +50,7 @@ function formStateFromActivity(activity?: Activity) {
   return {
     providerName: activity.providerName,
     isOwnActivity: activity.isOwnActivity ? "own" as const : "third_party" as const,
+    category: activity.category,
     tourName: activity.tourName,
     rackPrice: activity.rackPrice ?? "",
     netPrice: activity.netPrice ?? "",
@@ -72,6 +87,7 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
     setForm((prev) => ({
       ...prev,
       isOwnActivity: value,
+      category: value === "own" ? ownCategories[0].value : thirdPartyCategories[0].value,
       ...(value === "own" ? { netPrice: "", website: "" } : {})
     }));
   }
@@ -129,6 +145,19 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
           >
             <option value="own">Propia del centro</option>
             <option value="third_party">De un tercero (paga comisión)</option>
+          </select>
+        </Field>
+        <Field label="Categoría">
+          <select
+            className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            value={form.category}
+            onChange={(e) => update("category", e.target.value)}
+          >
+            {(form.isOwnActivity === "own" ? ownCategories : thirdPartyCategories).map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Nombre del tour">

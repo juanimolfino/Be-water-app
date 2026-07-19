@@ -7,6 +7,7 @@ import { createActivity } from "@/lib/db/queries";
 const schema = z.object({
   providerName: z.string().trim().min(1),
   isOwnActivity: z.boolean(),
+  category: z.enum(["buceo", "snorkel", "pasajero", "catamaran", "atv", "tirolesa", "otro"]),
   tourName: z.string().trim().min(1),
   rackPrice: z.string().trim().optional(),
   netPrice: z.string().trim().optional(),

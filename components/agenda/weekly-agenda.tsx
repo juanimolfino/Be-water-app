@@ -22,14 +22,14 @@ export type AgendaEntry = {
   assignedStaffId?: string | null;
   assignedStaff?: { fullName: string; role: "instructor" | "dm"; affiliation: "be_water" | "freelance" } | null;
   seller?: { fullName: string | null; email: string } | null;
-  activity: { tourName: string; providerName: string; isOwnActivity: boolean };
+  activity: { tourName: string; providerName: string; isOwnActivity: boolean; category: string };
 };
 
 export type AgendaManualItem = {
   id: string;
   itemDate: string;
   title: string;
-  activity?: { tourName: string; providerName: string; isOwnActivity: boolean } | null;
+  activity?: { tourName: string; providerName: string; isOwnActivity: boolean; category: string } | null;
   quantity: number | null;
   responsibleStaffId: string | null;
   responsibleStaff: { fullName: string; role: "instructor" | "dm"; affiliation: "be_water" | "freelance" } | null;
@@ -70,14 +70,8 @@ function startOfWeek(date: Date) {
   return start;
 }
 
-// Sin categoría dedicada en actividades: por ahora las propias del
-// centro son snorkel o buceo (fun dive / discover), se distinguen
-// por el nombre del tour. Un buzo ocupa más lugar en el bote que
-// un snorkel, por eso se cuentan por separado.
-function isSnorkelTour(tourName: string) {
-  return /snorkel/i.test(tourName);
-}
-
+// Un buzo ocupa más lugar en el bote que un snorkel, por eso se
+// cuentan por separado según la categoría real de la actividad.
 function ownDayCounts(ownEntries: AgendaEntry[], ownItems: AgendaManualItem[]) {
   let snorkelQty = 0;
   let diverQty = 0;
@@ -85,14 +79,14 @@ function ownDayCounts(ownEntries: AgendaEntry[], ownItems: AgendaManualItem[]) {
 
   for (const entry of ownEntries) {
     if (entry.reservationStatus === "cancelled") continue;
-    if (isSnorkelTour(entry.activity.tourName)) snorkelQty += entry.quantity;
-    else diverQty += entry.quantity;
+    if (entry.activity.category === "snorkel") snorkelQty += entry.quantity;
+    else if (entry.activity.category === "buceo") diverQty += entry.quantity;
     if (entry.assignedStaffId) responsibleIds.add(entry.assignedStaffId);
   }
   for (const item of ownItems) {
     const qty = item.quantity ?? 0;
-    if (isSnorkelTour(item.activity?.tourName ?? item.title)) snorkelQty += qty;
-    else diverQty += qty;
+    if (item.activity?.category === "snorkel") snorkelQty += qty;
+    else if (item.activity?.category === "buceo") diverQty += qty;
     if (item.responsibleStaffId) responsibleIds.add(item.responsibleStaffId);
   }
   return { snorkelQty, diverQty, responsibleCount: responsibleIds.size };

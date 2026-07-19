@@ -6,6 +6,16 @@ import { Button } from "@/components/ui/button";
 import { WhatsAppLink } from "@/components/activities/whatsapp-link";
 import type { Activity } from "@/lib/db/schema";
 
+const categoryLabels: Record<string, string> = {
+  buceo: "Buceo",
+  snorkel: "Snorkel",
+  pasajero: "Pasajero",
+  catamaran: "Catamarán",
+  atv: "ATV",
+  tirolesa: "Tirolesa",
+  otro: "Otro"
+};
+
 function money(value: string | null, currency: string) {
   if (!value) return "—";
   return `${currency === "USD" ? "$" : "₡"}${value}`;
@@ -23,6 +33,7 @@ export function ActivityCard({ activity, onEdit, onDelete }: { activity: Activit
           <Badge className={activity.isOwnActivity ? "border-primary text-primary" : ""}>
             {activity.isOwnActivity ? "Propia" : "Tercero"}
           </Badge>
+          <Badge>{categoryLabels[activity.category] ?? activity.category}</Badge>
           {onEdit ? (
             <Button type="button" variant="ghost" size="sm" onClick={onEdit} aria-label="Editar actividad" title="Editar actividad">
               <Pencil className="h-4 w-4" />

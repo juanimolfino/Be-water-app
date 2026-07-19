@@ -120,6 +120,13 @@
       "when": 1784464700997,
       "tag": "0016_amused_forge",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1784465763306,
+      "tag": "0017_tired_stranger",
+      "breakpoints": true
     }
   ]
 }

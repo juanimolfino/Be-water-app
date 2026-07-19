@@ -33,6 +33,15 @@ export const providerPaymentStatusEnum = pgEnum("provider_payment_status", ["pen
 export const expensePaymentMethodEnum = pgEnum("expense_payment_method", ["cash", "bank_transfer"]);
 export const staffRoleEnum = pgEnum("staff_role", ["instructor", "dm"]);
 export const staffAffiliationEnum = pgEnum("staff_affiliation", ["be_water", "freelance"]);
+export const activityCategoryEnum = pgEnum("activity_category", [
+  "buceo",
+  "snorkel",
+  "pasajero",
+  "catamaran",
+  "atv",
+  "tirolesa",
+  "otro"
+]);
 
 export const diveCenters = pgTable("dive_centers", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -72,6 +81,7 @@ export const activities = pgTable("activities", {
   diveCenterId: uuid("dive_center_id").references(() => diveCenters.id, { onDelete: "cascade" }).notNull(),
   providerName: text("provider_name").notNull(),
   isOwnActivity: boolean("is_own_activity").default(true).notNull(),
+  category: activityCategoryEnum("category").default("otro").notNull(),
   tourName: text("tour_name").notNull(),
   rackPrice: numeric("rack_price", { precision: 10, scale: 2 }),
   netPrice: numeric("net_price", { precision: 10, scale: 2 }),
@@ -315,6 +325,7 @@ export type DiveCenter = typeof diveCenters.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type Sale = typeof sales.$inferSelect;
 export type Currency = typeof currencyEnum.enumValues[number];
+export type ActivityCategory = typeof activityCategoryEnum.enumValues[number];
 export type PaymentMethod = typeof paymentMethodEnum.enumValues[number];
 export type CommissionStatus = typeof commissionStatusEnum.enumValues[number];
 export type ReservationStatus = typeof reservationStatusEnum.enumValues[number];
