@@ -8,6 +8,9 @@ const schema = z.object({
   activityId: z.string().uuid("Elegí una actividad"),
   quantity: z.coerce.number().int().min(1).optional().or(z.literal("")),
   responsibleStaffId: z.string().uuid().optional().or(z.literal("")),
+  customerName: z.string().trim().min(1, "El nombre del cliente es obligatorio"),
+  customerPhone: z.string().trim().optional(),
+  isWeTravelSale: z.boolean().optional(),
   notes: z.string().trim().optional()
 });
 
@@ -25,6 +28,9 @@ export async function POST(request: Request) {
     activityId: parsed.data.activityId,
     quantity: parsed.data.quantity === "" ? null : parsed.data.quantity,
     responsibleStaffId: parsed.data.responsibleStaffId || null,
+    customerName: parsed.data.customerName,
+    customerPhone: parsed.data.customerPhone,
+    isWeTravelSale: parsed.data.isWeTravelSale,
     notes: parsed.data.notes,
     createdByUserId: profile.id
   });

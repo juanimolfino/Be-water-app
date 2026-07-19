@@ -728,6 +728,9 @@ export async function createAgendaItem(input: {
   activityId: string;
   quantity?: number | null;
   responsibleStaffId?: string | null;
+  customerName: string;
+  customerPhone?: string | null;
+  isWeTravelSale?: boolean;
   notes?: string | null;
   createdByUserId: string;
 }) {
@@ -751,6 +754,9 @@ export async function createAgendaItem(input: {
       activityId: activity.id,
       quantity: input.quantity ?? null,
       responsibleStaffId: activity.isOwnActivity ? input.responsibleStaffId || null : null,
+      customerName: input.customerName,
+      customerPhone: input.customerPhone || null,
+      isWeTravelSale: input.isWeTravelSale ?? false,
       notes: input.notes || null,
       createdByUserId: input.createdByUserId
     })

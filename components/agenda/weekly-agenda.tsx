@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResponsibleSelect } from "@/components/agenda/responsible-select";
 import { MarkPaidButton } from "@/components/sales/mark-paid-button";
@@ -33,6 +33,9 @@ export type AgendaManualItem = {
   quantity: number | null;
   responsibleStaffId: string | null;
   responsibleStaff: { fullName: string; role: "instructor" | "dm"; affiliation: "be_water" | "freelance" } | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  isWeTravelSale: boolean;
   notes: string | null;
 };
 
@@ -288,7 +291,10 @@ function ManualBlock({
   return (
     <article className="border-l-4 border-sky-500 bg-sky-50 p-2 text-xs text-sky-950">
       <div className="flex items-start justify-between gap-2">
-        <p className="font-semibold">{item.title}</p>
+        <p className="flex items-center gap-1 font-semibold">
+          {item.isWeTravelSale ? <Star className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-400" aria-label="Venta por We Travel" /> : null}
+          {item.title}
+        </p>
         {onDelete ? (
           <Button
             type="button"
@@ -305,6 +311,7 @@ function ManualBlock({
         ) : null}
       </div>
       {item.quantity ? <p>{item.quantity} {item.quantity === 1 ? "persona" : "personas"}</p> : null}
+      {item.customerName ? <p className="text-sky-800">{item.customerName}{item.customerPhone ? ` · ${item.customerPhone}` : ""}</p> : null}
       {item.responsibleStaff ? <p className="text-sky-800">Responsable: {item.responsibleStaff.fullName}</p> : null}
       {item.notes ? <p className="mt-1 text-sky-800">{item.notes}</p> : null}
       {canAssignResponsible && item.activity?.isOwnActivity ? (

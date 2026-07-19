@@ -68,6 +68,9 @@ export function AgendaControls({
       activityId: form.get("activityId"),
       quantity: form.get("quantity"),
       responsibleStaffId: form.get("responsibleStaffId") ?? "",
+      customerName: form.get("customerName"),
+      customerPhone: form.get("customerPhone"),
+      isWeTravelSale: form.get("isWeTravelSale") === "on",
       notes: form.get("notes")
     });
     if (ok) {
@@ -131,6 +134,18 @@ export function AgendaControls({
           <label className="text-sm font-medium">
             Personas
             <Input className="mt-1" type="number" min={1} name="quantity" />
+          </label>
+          <label className="text-sm font-medium">
+            Nombre del cliente
+            <Input className="mt-1" required name="customerName" />
+          </label>
+          <label className="text-sm font-medium">
+            Teléfono del cliente
+            <Input className="mt-1" type="tel" name="customerPhone" placeholder="Opcional" />
+          </label>
+          <label className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm font-medium md:col-span-2">
+            <input type="checkbox" name="isWeTravelSale" />
+            Venta por We Travel
           </label>
           {canAssignSelectedActivity ? (
             <label className="text-sm font-medium md:col-span-2">
