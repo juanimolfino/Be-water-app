@@ -1,7 +1,6 @@
 import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import {
-  agendaCapacityFlags,
   agendaItems,
   agendaNotices,
   activities,
@@ -856,28 +855,6 @@ export async function deleteAgendaNotice(input: { noticeId: string; diveCenterId
   return getDb()
     .delete(agendaNotices)
     .where(and(eq(agendaNotices.id, input.noticeId), eq(agendaNotices.diveCenterId, input.diveCenterId)))
-    .returning();
-}
-
-export async function listAgendaCapacityFlagsForCenter(diveCenterId: string) {
-  return getDb().query.agendaCapacityFlags.findMany({
-    where: eq(agendaCapacityFlags.diveCenterId, diveCenterId)
-  });
-}
-
-export async function markAgendaDayFull(input: { diveCenterId: string; flagDate: string; createdByUserId: string }) {
-  const [flag] = await getDb()
-    .insert(agendaCapacityFlags)
-    .values({ diveCenterId: input.diveCenterId, flagDate: input.flagDate, createdByUserId: input.createdByUserId })
-    .onConflictDoNothing({ target: [agendaCapacityFlags.diveCenterId, agendaCapacityFlags.flagDate] })
-    .returning();
-  return flag;
-}
-
-export async function unmarkAgendaDayFull(input: { diveCenterId: string; flagDate: string }) {
-  return getDb()
-    .delete(agendaCapacityFlags)
-    .where(and(eq(agendaCapacityFlags.diveCenterId, input.diveCenterId), eq(agendaCapacityFlags.flagDate, input.flagDate)))
     .returning();
 }
 
