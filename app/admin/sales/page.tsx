@@ -5,8 +5,23 @@ import { CancelSaleButton } from "@/components/sales/cancel-sale-button";
 import { CommissionAmount } from "@/components/sales/commission-amount";
 import { CommissionStatusBadge } from "@/components/sales/commission-status-badge";
 import { ReservationDateCell } from "@/components/sales/reservation-date-cell";
+import { ExportExcelButton } from "@/components/reports/export-excel-button";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import { listActivitiesForCenter, listSalesForCenter } from "@/lib/db/queries";
+import { dateInputValue } from "@/lib/reports/date";
+
+const paymentMethodLabels: Record<string, string> = {
+  cash: "Efectivo",
+  card: "Tarjeta",
+  via_link: "Vía link",
+  referral: "Referenciado"
+};
+
+const commissionStatusLabels: Record<string, string> = {
+  pending: "Pendiente",
+  approved: "Aprobada",
+  rejected: "Rechazada"
+};
 
 export const metadata = { title: "Ventas" };
 
@@ -46,6 +61,26 @@ export default async function AdminSalesPage({
   const monthSales = all.filter((sale) => sale.saleDate >= start && sale.saleDate < end);
   const visibleSales = monthSales.slice(0, limit);
   const hasMoreSales = monthSales.length > limit;
+  const exportRows = monthSales.map((sale) => {
+    const hasSellerCommission = sale.seller.role === "seller";
+    return {
+      "Fecha de venta": dateInputValue(sale.saleDate),
+      "Fecha del tour": sale.tourDate ?? "",
+      "Estado de reserva": sale.reservationStatus === "cancelled" ? "Anulada" : "Activa",
+      Vendedor: hasSellerCommission ? sale.seller.fullName ?? sale.seller.email : "Centro",
+      Cliente: sale.customerName ?? "",
+      Teléfono: sale.customerPhone ?? "",
+      Empresa: sale.activity.providerName,
+      Actividad: sale.activity.tourName,
+      Cantidad: sale.quantity,
+      "Medio de pago": paymentMethodLabels[sale.paymentMethod] ?? sale.paymentMethod,
+      Moneda: sale.currency,
+      Total: Number(sale.grossAmount),
+      Comisión: hasSellerCommission ? Number(sale.commissionAmount) : 0,
+      "Estado de comisión": hasSellerCommission ? commissionStatusLabels[sale.commissionStatus] ?? sale.commissionStatus : "",
+      "Cobro al cliente": sale.paymentStatus === "paid" ? "Cobrado" : "Sin cobrar"
+    };
+  });
 
   function salesHref(input: { month?: string; limit?: number }) {
     const query = new URLSearchParams();
@@ -119,7 +154,10 @@ export default async function AdminSalesPage({
         </div>
       )}
 
-      <h2 className="mb-3 text-xl font-semibold">Historial</h2>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-semibold">Historial</h2>
+        <ExportExcelButton rows={exportRows} filename={`ventas-${selectedMonth}.xlsx`} sheetName="Ventas" />
+      </div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Link className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${selectedMonth === currentMonth ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/20" : ""}`} href={salesHref({ month: currentMonth })}>Mes en curso</Link>
         <Link className={`inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium ${selectedMonth === previousMonth ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/20" : ""}`} href={salesHref({ month: previousMonth })}>Mes anterior</Link>

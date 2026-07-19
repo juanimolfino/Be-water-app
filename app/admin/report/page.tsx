@@ -3,6 +3,7 @@ import { CheckCircle2 } from "lucide-react";
 import { CommissionStatusBadge } from "@/components/sales/commission-status-badge";
 import { ReservationDateCell } from "@/components/sales/reservation-date-cell";
 import { ProviderPaymentButton } from "@/components/sales/provider-payment-button";
+import { ExportExcelButton } from "@/components/reports/export-excel-button";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import { getDiveCenterById, listActivitiesForCenter, listSalesForCenter } from "@/lib/db/queries";
@@ -75,6 +76,27 @@ export default async function AdminReportPage({
   const sortedDailyRows = [...daily.entries()].sort(([a], [b]) => b.localeCompare(a));
   const visibleDailyRows = sortedDailyRows.slice(0, dailyLimit);
   const visibleSales = filteredSales.slice(0, detailLimit);
+  const commissionStatusLabels: Record<string, string> = { pending: "Pendiente", approved: "Aprobada", rejected: "Rechazada" };
+  const exportRows = filteredSales.map((sale) => {
+    const hasSellerCommission = sale.seller.role === "seller";
+    return {
+      "Fecha de venta": dateInputValue(sale.saleDate),
+      "Fecha del tour": sale.tourDate ?? "",
+      "Estado de reserva": sale.reservationStatus === "cancelled" ? "Anulada" : "Activa",
+      Cliente: sale.customerName ?? "",
+      Teléfono: sale.customerPhone ?? "",
+      Email: sale.customerEmail ?? "",
+      Empresa: sale.activity.providerName,
+      Actividad: sale.activity.tourName,
+      Vendedor: hasSellerCommission ? sale.seller.fullName ?? sale.seller.email : "Centro",
+      Cantidad: sale.quantity,
+      Moneda: sale.currency,
+      Ingreso: Number(sale.grossAmount),
+      Comisión: hasSellerCommission ? Number(sale.commissionAmount) : 0,
+      "Estado de comisión": hasSellerCommission ? commissionStatusLabels[sale.commissionStatus] ?? sale.commissionStatus : "",
+      "Cobro al cliente": sale.paymentStatus === "paid" ? "Cobrado" : "Sin cobrar"
+    };
+  });
 
   function reportHref(updates: Record<string, string | number | undefined>) {
     const query = new URLSearchParams();
@@ -185,7 +207,10 @@ export default async function AdminReportPage({
         </div>
       )}
 
-      <h2 className="mb-3 text-xl font-semibold">Detalle de ventas</h2>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-semibold">Detalle de ventas</h2>
+        <ExportExcelButton rows={exportRows} filename={`ingresos-${from}-${to}.xlsx`} sheetName="Ingresos" />
+      </div>
       {filteredSales.length === 0 ? <p className="text-muted-foreground">No hay ventas para mostrar.</p> : (
         <div className="overflow-x-auto rounded-lg border"><table className="w-full text-sm"><thead className="bg-muted text-left"><tr><th className="px-4 py-2">Venta</th><th className="px-4 py-2">Tour</th><th className="px-4 py-2">Cliente</th><th className="px-4 py-2">Contacto</th><th className="px-4 py-2">Empresa / tour</th><th className="px-4 py-2">Vendedor</th><th className="px-4 py-2">Ingreso</th><th className="px-4 py-2">Comisión</th><th className="px-4 py-2">Estado de comisión</th></tr></thead>
           <tbody>{visibleSales.map((sale) => <tr key={sale.id} className="border-t"><td className="px-4 py-2">{sale.saleDate.toLocaleDateString()}</td><td className="px-4 py-2"><ReservationDateCell tourDate={sale.tourDate} reservationStatus={sale.reservationStatus} /></td><td className="px-4 py-2">{sale.customerName ?? "—"}</td><td className="px-4 py-2"><p>{sale.customerPhone ?? "—"}</p><p className="text-muted-foreground">{sale.customerEmail ?? ""}</p></td><td className="px-4 py-2"><p>{sale.activity.providerName}</p><p className="text-muted-foreground">{sale.activity.tourName}</p></td><td className="px-4 py-2">{sale.seller.role === "seller" ? sale.seller.fullName ?? sale.seller.email : "—"}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? "—" : `${sale.currency === "USD" ? "$" : "₡"}${sale.grossAmount}`}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" || sale.seller.role !== "seller" ? "—" : `${sale.currency === "USD" ? "$" : "₡"}${sale.commissionAmount}`}</td><td className="px-4 py-2">{sale.reservationStatus === "cancelled" ? <Badge className={tourStatusClasses.cancelled}>Anulada</Badge> : sale.seller.role === "seller" ? <CommissionStatusBadge status={sale.commissionStatus} /> : "—"}{sale.reservationStatus === "cancelled" && sale.cancellationReason ? <p className="mt-1 text-xs text-muted-foreground">{sale.cancellationReason}</p> : null}</td></tr>)}</tbody>

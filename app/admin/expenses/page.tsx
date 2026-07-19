@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ExpenseCategoryManager } from "@/components/admin/expense-category-manager";
 import { ExpenseForm } from "@/components/admin/expense-form";
+import { ExportExcelButton } from "@/components/reports/export-excel-button";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import {
   getDiveCenterById,
@@ -54,6 +55,15 @@ export default async function AdminExpensesPage({
   });
 
   const total = formatMoneyTotals(filtered.map((expense) => ({ currency: expense.currency, amount: expense.amount })));
+  const exportRows = filtered.map((expense) => ({
+    Fecha: expense.expenseDate,
+    Categoría: expense.category.name,
+    Descripción: expense.description,
+    Proveedor: expense.providerName ?? "",
+    "Forma de pago": paymentMethodLabel[expense.paymentMethod] ?? expense.paymentMethod,
+    Moneda: expense.currency,
+    Monto: Number(expense.amount)
+  }));
   const visible = filtered.slice(0, limit);
   const hasMore = filtered.length > limit;
 
@@ -156,7 +166,10 @@ export default async function AdminExpensesPage({
         <p className="mt-2 text-3xl font-semibold">{total}</p>
       </div>
 
-      <h2 className="mb-3 text-xl font-semibold">Detalle de gastos</h2>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-semibold">Detalle de gastos</h2>
+        <ExportExcelButton rows={exportRows} filename={`gastos-${from}-${to}.xlsx`} sheetName="Gastos" />
+      </div>
       {visible.length === 0 ? (
         <p className="mb-24 text-muted-foreground md:mb-0">No hay gastos para los filtros seleccionados.</p>
       ) : (
