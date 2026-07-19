@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Star, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ClipboardList, Star, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResponsibleSelect } from "@/components/agenda/responsible-select";
 import { MarkPaidButton } from "@/components/sales/mark-paid-button";
@@ -92,6 +92,74 @@ function ownDayCounts(ownEntries: AgendaEntry[], ownItems: AgendaManualItem[]) {
   return { snorkelQty, diverQty, responsibleCount: responsibleIds.size };
 }
 
+const categoryLabels: Record<string, string> = { buceo: "Buceo", snorkel: "Snorkel", pasajero: "Pasajero", otro: "Otro" };
+const categoryOrder = ["buceo", "snorkel", "pasajero", "otro"];
+
+// Resumen visual de cierre del día: agrupa las ventas propias por
+// responsable y, dentro de cada uno, por categoría y cliente — así
+// el admin ve de un vistazo cuántos snorkel/buceos lleva cada
+// instructor/guía y a nombre de quién, para compartirlo por WhatsApp.
+function buildDayReport(dayEntries: AgendaEntry[], dayItems: AgendaManualItem[]) {
+  const ownEntries = dayEntries.filter((entry) => entry.activity.isOwnActivity && entry.reservationStatus !== "cancelled");
+  const ownItems = dayItems.filter((item) => item.activity?.isOwnActivity);
+  const thirdPartyEntries = dayEntries.filter((entry) => !entry.activity.isOwnActivity && entry.reservationStatus !== "cancelled");
+  const thirdPartyItems = dayItems.filter((item) => item.activity && !item.activity.isOwnActivity);
+
+  const buckets = new Map<string, { label: string; categories: Map<string, Map<string, number>> }>();
+
+  function addToBucket(responsibleKey: string, responsibleLabel: string, category: string, customerName: string, qty: number) {
+    if (qty <= 0) return;
+    const bucket = buckets.get(responsibleKey) ?? { label: responsibleLabel, categories: new Map<string, Map<string, number>>() };
+    const catMap = bucket.categories.get(category) ?? new Map<string, number>();
+    catMap.set(customerName, (catMap.get(customerName) ?? 0) + qty);
+    bucket.categories.set(category, catMap);
+    buckets.set(responsibleKey, bucket);
+  }
+
+  for (const entry of ownEntries) {
+    addToBucket(entry.assignedStaffId ?? "unassigned", entry.assignedStaff?.fullName ?? "Sin responsable asignado", entry.activity.category, entry.customerName ?? "Cliente sin nombre", entry.quantity);
+  }
+  for (const item of ownItems) {
+    addToBucket(item.responsibleStaffId ?? "unassigned", item.responsibleStaff?.fullName ?? "Sin responsable asignado", item.activity?.category ?? "otro", item.customerName ?? "Cliente sin nombre", item.quantity ?? 0);
+  }
+
+  const responsibleGroups = [...buckets.entries()]
+    .map(([key, bucket]) => {
+      const categories = categoryOrder
+        .filter((category) => bucket.categories.has(category))
+        .map((category) => {
+          const rows = [...bucket.categories.get(category)!.entries()]
+            .map(([customerName, quantity]) => ({ customerName, quantity }))
+            .sort((a, b) => b.quantity - a.quantity);
+          const total = rows.reduce((sum, row) => sum + row.quantity, 0);
+          return { category, label: categoryLabels[category] ?? category, rows, total };
+        });
+      const total = categories.reduce((sum, cat) => sum + cat.total, 0);
+      return { key, label: bucket.label, categories, total };
+    })
+    .sort((a, b) => (a.key === "unassigned" ? 1 : b.key === "unassigned" ? -1 : a.label.localeCompare(b.label)));
+
+  const thirdPartyRows = [
+    ...thirdPartyEntries.map((entry) => ({
+      label: `${entry.activity.providerName} · ${entry.activity.tourName}`,
+      customerName: entry.customerName ?? "Cliente sin nombre",
+      quantity: entry.quantity
+    })),
+    ...thirdPartyItems.map((item) => ({
+      label: item.activity ? `${item.activity.providerName} · ${item.activity.tourName}` : item.title,
+      customerName: item.customerName ?? "Cliente sin nombre",
+      quantity: item.quantity ?? 0
+    }))
+  ];
+
+  const totalsByCategory = categoryOrder.reduce<Record<string, number>>((acc, category) => {
+    acc[category] = responsibleGroups.reduce((sum, group) => sum + (group.categories.find((cat) => cat.category === category)?.total ?? 0), 0);
+    return acc;
+  }, {});
+
+  return { responsibleGroups, thirdPartyRows, totalsByCategory };
+}
+
 export function WeeklyAgenda({
   entries,
   items = [],
@@ -118,6 +186,7 @@ export function WeeklyAgenda({
   const [saving, setSaving] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [deletingNoticeId, setDeletingNoticeId] = useState<string | null>(null);
+  const [reportDayKey, setReportDayKey] = useState<string | null>(null);
   const start = startOfWeek(parseDate(week));
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(start);
@@ -202,7 +271,18 @@ export function WeeklyAgenda({
           return (
             <section key={dateKey(day)} className="min-h-72 border-b p-3 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0">
               <div className="mb-3 flex items-baseline justify-between">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">{day.toLocaleDateString(undefined, { weekday: "short" })}</p>
+                <div className="flex items-center gap-1">
+                  <p className="text-xs font-semibold uppercase text-muted-foreground">{day.toLocaleDateString(undefined, { weekday: "short" })}</p>
+                  <button
+                    type="button"
+                    onClick={() => setReportDayKey(key)}
+                    title="Ver reporte del día"
+                    aria-label="Ver reporte del día"
+                    className="grid h-6 w-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <ClipboardList className="h-3.5 w-3.5" />
+                  </button>
+                </div>
                 <p className={today ? "grid h-10 w-10 place-items-center rounded-full bg-primary text-2xl font-semibold text-primary-foreground" : "text-2xl font-semibold"}>{day.getDate()}</p>
               </div>
               <div className="space-y-2">
@@ -302,7 +382,91 @@ export function WeeklyAgenda({
           </div>
         </div>
       ) : null}
+
+      {reportDayKey ? (
+        <DayReportModal
+          dateKey={reportDayKey}
+          dayEntries={entries.filter((entry) => entry.tourDate === reportDayKey)}
+          dayItems={items.filter((item) => item.itemDate === reportDayKey)}
+          onClose={() => setReportDayKey(null)}
+        />
+      ) : null}
     </>
+  );
+}
+
+function DayReportModal({
+  dateKey: reportDateKey,
+  dayEntries,
+  dayItems,
+  onClose
+}: {
+  dateKey: string;
+  dayEntries: AgendaEntry[];
+  dayItems: AgendaManualItem[];
+  onClose: () => void;
+}) {
+  const { responsibleGroups, thirdPartyRows, totalsByCategory } = buildDayReport(dayEntries, dayItems);
+  const hasContent = responsibleGroups.length > 0 || thirdPartyRows.length > 0;
+  const formattedDate = new Date(`${reportDateKey}T12:00:00`).toLocaleDateString(undefined, {
+    weekday: "long",
+    day: "numeric",
+    month: "long"
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="day-report-title">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border bg-card p-6 shadow-lg">
+        <div className="mb-4 flex items-start justify-between gap-2">
+          <div>
+            <h2 id="day-report-title" className="text-lg font-semibold">Reporte del día</h2>
+            <p className="text-sm capitalize text-muted-foreground">{formattedDate}</p>
+          </div>
+          <Button type="button" variant="ghost" size="sm" onClick={onClose} aria-label="Cerrar reporte"><X className="h-4 w-4" /></Button>
+        </div>
+
+        {!hasContent ? <p className="text-sm text-muted-foreground">No hay ventas cargadas para este día.</p> : null}
+
+        {responsibleGroups.map((group) => (
+          <div key={group.key} className="mb-3 rounded-md border p-3">
+            <p className="font-semibold">
+              {group.label} <span className="font-normal text-muted-foreground">— {group.total} {group.total === 1 ? "persona" : "personas"}</span>
+            </p>
+            {group.categories.map((category) => (
+              <div key={category.category} className="mt-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{category.label} ({category.total})</p>
+                <ul className="mt-1 space-y-0.5 text-sm">
+                  {category.rows.map((row, index) => (
+                    <li key={index}>{row.customerName}: <span className="font-medium">{row.quantity}</span></li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        ))}
+
+        {thirdPartyRows.length > 0 ? (
+          <div className="mb-3 rounded-md border p-3">
+            <p className="font-semibold">Terceros</p>
+            <ul className="mt-2 space-y-0.5 text-sm">
+              {thirdPartyRows.map((row, index) => (
+                <li key={index}>{row.label} — {row.customerName}: <span className="font-medium">{row.quantity}</span></li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {hasContent ? (
+          <div className="border-t pt-3 text-sm">
+            <p className="font-semibold">Totales del día (propias)</p>
+            <p>
+              Buzos: <span className="font-semibold text-foreground">{totalsByCategory.buceo}</span> · Snorkel: <span className="font-semibold text-foreground">{totalsByCategory.snorkel}</span>
+              {totalsByCategory.pasajero ? <> · Pasajeros: <span className="font-semibold text-foreground">{totalsByCategory.pasajero}</span></> : null}
+            </p>
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -383,7 +547,7 @@ function ReservationBlock({
       {entry.assignedStaff ? <p className="text-muted-foreground">Responsable: {entry.assignedStaff.fullName}</p> : null}
       <p className="mt-1 font-medium">{saleAgendaStatusLabel[agendaStatus]}</p>
       {agendaStatus === "unpaid" ? (
-        <MarkPaidButton saleId={entry.id} endpoint={endpoint} tone={entry.activity.isOwnActivity ? "success" : "danger"} />
+        <MarkPaidButton saleId={entry.id} endpoint={endpoint} />
       ) : null}
       {cancelled && entry.cancellationReason ? <p className="mt-1 text-muted-foreground">{entry.cancellationReason}</p> : null}
       {canAssignResponsible && entry.activity.isOwnActivity ? (
