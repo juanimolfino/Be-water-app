@@ -70,6 +70,34 @@ function startOfWeek(date: Date) {
   return start;
 }
 
+// Sin categoría dedicada en actividades: por ahora las propias del
+// centro son snorkel o buceo (fun dive / discover), se distinguen
+// por el nombre del tour. Un buzo ocupa más lugar en el bote que
+// un snorkel, por eso se cuentan por separado.
+function isSnorkelTour(tourName: string) {
+  return /snorkel/i.test(tourName);
+}
+
+function ownDayCounts(ownEntries: AgendaEntry[], ownItems: AgendaManualItem[]) {
+  let snorkelQty = 0;
+  let diverQty = 0;
+  const responsibleIds = new Set<string>();
+
+  for (const entry of ownEntries) {
+    if (entry.reservationStatus === "cancelled") continue;
+    if (isSnorkelTour(entry.activity.tourName)) snorkelQty += entry.quantity;
+    else diverQty += entry.quantity;
+    if (entry.assignedStaffId) responsibleIds.add(entry.assignedStaffId);
+  }
+  for (const item of ownItems) {
+    const qty = item.quantity ?? 0;
+    if (isSnorkelTour(item.activity?.tourName ?? item.title)) snorkelQty += qty;
+    else diverQty += qty;
+    if (item.responsibleStaffId) responsibleIds.add(item.responsibleStaffId);
+  }
+  return { snorkelQty, diverQty, responsibleCount: responsibleIds.size };
+}
+
 export function WeeklyAgenda({
   entries,
   items = [],
@@ -174,6 +202,8 @@ export function WeeklyAgenda({
           const dayNotices = notices.filter((notice) => notice.noticeDate === key);
           const ownEntries = dayEntries.filter((entry) => entry.activity.isOwnActivity);
           const thirdPartyEntries = dayEntries.filter((entry) => !entry.activity.isOwnActivity);
+          const ownItems = dayItems.filter((item) => item.activity?.isOwnActivity);
+          const { snorkelQty, diverQty, responsibleCount } = ownDayCounts(ownEntries, ownItems);
           const today = dateKey(day) === dateKey(new Date());
           return (
             <section key={dateKey(day)} className="min-h-72 border-b p-3 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0">
@@ -249,6 +279,13 @@ export function WeeklyAgenda({
                         {notice.createdBy ? <p className="mt-1 text-[10px] text-amber-800">{notice.createdBy.fullName ?? notice.createdBy.email}</p> : null}
                       </div>
                     ))}
+                  </div>
+                ) : null}
+                {snorkelQty > 0 || diverQty > 0 ? (
+                  <div className="rounded-md border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
+                    <p className="mb-1 font-semibold uppercase tracking-wide">Cupo propias del centro</p>
+                    <p>Buzos: <span className="font-semibold text-foreground">{diverQty}</span> · Snorkel: <span className="font-semibold text-foreground">{snorkelQty}</span></p>
+                    <p>Responsables asignados: <span className="font-semibold text-foreground">{responsibleCount}</span></p>
                   </div>
                 ) : null}
               </div>
