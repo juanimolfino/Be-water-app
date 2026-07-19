@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { SaleValidationActions } from "@/components/admin/sale-validation-row";
+import { SalesHistoryTable } from "@/components/admin/sales-history-table";
 import { SaleForm } from "@/components/seller/sale-form";
 import { CancelSaleButton } from "@/components/sales/cancel-sale-button";
 import { CommissionAmount } from "@/components/sales/commission-amount";
-import { CommissionStatusBadge } from "@/components/sales/commission-status-badge";
 import { ReservationDateCell } from "@/components/sales/reservation-date-cell";
 import { ExportExcelButton } from "@/components/reports/export-excel-button";
 import { getCurrentProfile } from "@/lib/auth/roles";
@@ -170,58 +170,7 @@ export default async function AdminSalesPage({
         <p className="text-muted-foreground">Todavía no hay ventas cargadas.</p>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted text-left">
-                <tr>
-                  <th className="px-4 py-2">Tour</th>
-                  <th className="px-4 py-2">Vendedor</th>
-                  <th className="px-4 py-2">Cliente</th>
-                  <th className="px-4 py-2">Actividad</th>
-                  <th className="px-4 py-2">Fecha de venta</th>
-                  <th className="px-4 py-2">Estado de comisión</th>
-                  <th className="px-4 py-2">Comisión</th>
-                  <th className="px-4 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleSales.map((sale) => {
-                  const cancelled = sale.reservationStatus === "cancelled";
-                  const hasSellerCommission = sale.seller.role === "seller";
-                  return (
-                    <tr key={sale.id} className="border-t">
-                      <td className="px-4 py-2">
-                        <ReservationDateCell tourDate={sale.tourDate} reservationStatus={sale.reservationStatus} />
-                      </td>
-                      <td className="px-4 py-2">{hasSellerCommission ? sale.seller.fullName ?? sale.seller.email : "—"}</td>
-                      <td className="px-4 py-2">
-                        <p>{sale.customerName ?? "—"}</p>
-                        <p className="text-muted-foreground">{sale.customerPhone ?? ""}</p>
-                      </td>
-                      <td className="px-4 py-2">{sale.activity.tourName}</td>
-                      <td className="px-4 py-2">{new Date(sale.saleDate).toLocaleDateString()}</td>
-                      <td className="px-4 py-2">
-                        {hasSellerCommission ? <CommissionStatusBadge status={sale.commissionStatus} /> : "—"}
-                      </td>
-                      <td className="px-4 py-2">
-                        {hasSellerCommission ? (
-                          <CommissionAmount
-                            amount={sale.commissionAmount}
-                            currency={sale.currency}
-                            status={sale.commissionStatus}
-                            cancelled={cancelled}
-                          />
-                        ) : "—"}
-                      </td>
-                      <td className="px-4 py-2">
-                        {!cancelled ? <CancelSaleButton saleId={sale.id} endpoint="/api/admin/sales" /> : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <SalesHistoryTable sales={visibleSales} />
           {hasMoreSales ? (
             <div className="mt-4">
               <Link className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium" href={salesHref({ limit: limit + PAGE_SIZE })}>Ver 10 ventas más</Link>

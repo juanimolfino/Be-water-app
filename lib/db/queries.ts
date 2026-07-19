@@ -609,6 +609,41 @@ export async function validateSale(input: {
     .returning();
 }
 
+export async function updateSaleDetails(input: {
+  saleId: string;
+  diveCenterId: string;
+  tourDate: string;
+  customerName: string;
+  quantity: number;
+  grossAmount: number;
+}) {
+  const sale = await getDb().query.sales.findFirst({
+    where: and(eq(sales.id, input.saleId), eq(sales.diveCenterId, input.diveCenterId), eq(sales.reservationStatus, "active"))
+  });
+  if (!sale) return null;
+
+  // Se mantiene la comisión por unidad ya definida en la venta y se
+  // escala a la nueva cantidad, para no recalcularla contra tarifas
+  // de la actividad que puedan haber cambiado desde entonces.
+  const unitPrice = (input.grossAmount / input.quantity).toFixed(2);
+  const commissionAmount = ((Number(sale.commissionAmount) / sale.quantity) * input.quantity).toFixed(2);
+
+  const [updated] = await getDb()
+    .update(sales)
+    .set({
+      tourDate: input.tourDate,
+      customerName: input.customerName,
+      quantity: input.quantity,
+      unitPrice,
+      grossAmount: input.grossAmount.toFixed(2),
+      commissionAmount,
+      updatedAt: new Date()
+    })
+    .where(and(eq(sales.id, input.saleId), eq(sales.diveCenterId, input.diveCenterId)))
+    .returning();
+  return updated;
+}
+
 export async function cancelSale(input: {
   saleId: string;
   diveCenterId: string;
