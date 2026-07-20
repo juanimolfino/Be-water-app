@@ -187,6 +187,18 @@ export function WeeklyAgenda({
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [deletingNoticeId, setDeletingNoticeId] = useState<string | null>(null);
   const [reportDayKey, setReportDayKey] = useState<string | null>(null);
+  // Puramente visual: no persiste en el servidor, solo mientras la
+  // página sigue abierta.
+  const [fullDays, setFullDays] = useState<Set<string>>(new Set());
+
+  function toggleFull(key: string) {
+    setFullDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
   const start = startOfWeek(parseDate(week));
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(start);
@@ -356,10 +368,23 @@ export function WeeklyAgenda({
                   </div>
                 ) : null}
                 {snorkelQty > 0 || diverQty > 0 ? (
-                  <div className="rounded-md border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
-                    <p className="mb-1 font-semibold uppercase tracking-wide">Cupo propias del centro</p>
-                    <p>Buzos: <span className="font-semibold text-foreground">{diverQty}</span> · Snorkel: <span className="font-semibold text-foreground">{snorkelQty}</span></p>
-                    <p>Responsables asignados: <span className="font-semibold text-foreground">{responsibleCount}</span></p>
+                  <div className={`rounded-md border px-2 py-1.5 text-[11px] ${fullDays.has(key) ? "border-red-300 bg-red-50 text-red-700" : "bg-muted/40 text-muted-foreground"}`}>
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <p className="font-semibold uppercase tracking-wide">{fullDays.has(key) ? "Bote lleno" : "Cupo propias del centro"}</p>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={fullDays.has(key)}
+                        aria-label="Marcar bote lleno"
+                        title="Marcar bote lleno"
+                        onClick={() => toggleFull(key)}
+                        className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${fullDays.has(key) ? "bg-red-600" : "bg-muted-foreground/30"}`}
+                      >
+                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${fullDays.has(key) ? "translate-x-3.5" : "translate-x-0.5"}`} />
+                      </button>
+                    </div>
+                    <p>Buzos: <span className={`font-semibold ${fullDays.has(key) ? "text-red-700" : "text-foreground"}`}>{diverQty}</span> · Snorkel: <span className={`font-semibold ${fullDays.has(key) ? "text-red-700" : "text-foreground"}`}>{snorkelQty}</span></p>
+                    <p>Responsables asignados: <span className={`font-semibold ${fullDays.has(key) ? "text-red-700" : "text-foreground"}`}>{responsibleCount}</span></p>
                   </div>
                 ) : null}
               </div>
