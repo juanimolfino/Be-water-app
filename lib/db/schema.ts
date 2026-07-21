@@ -182,6 +182,20 @@ export const agendaNotices = pgTable("agenda_notices", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 });
 
+// Un solo registro por (centro, día) marca que ese día está lleno.
+// Existencia de la fila = bandera activa, sin columna booleana.
+export const agendaCapacityFlags = pgTable(
+  "agenda_capacity_flags",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    diveCenterId: uuid("dive_center_id").references(() => diveCenters.id, { onDelete: "cascade" }).notNull(),
+    flagDate: date("flag_date").notNull(),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [uniqueIndex("agenda_capacity_flags_center_date_idx").on(table.diveCenterId, table.flagDate)]
+);
+
 export const expenseCategories = pgTable(
   "expense_categories",
   {
@@ -268,6 +282,7 @@ export const diveCenterRelations = relations(diveCenters, ({ many }) => ({
   sales: many(sales),
   agendaItems: many(agendaItems),
   agendaNotices: many(agendaNotices),
+  agendaCapacityFlags: many(agendaCapacityFlags),
   expenseCategories: many(expenseCategories),
   expenses: many(expenses)
 }));
@@ -305,6 +320,11 @@ export const agendaNoticeRelations = relations(agendaNotices, ({ one }) => ({
   createdBy: one(users, { fields: [agendaNotices.createdByUserId], references: [users.id] })
 }));
 
+export const agendaCapacityFlagRelations = relations(agendaCapacityFlags, ({ one }) => ({
+  diveCenter: one(diveCenters, { fields: [agendaCapacityFlags.diveCenterId], references: [diveCenters.id] }),
+  createdBy: one(users, { fields: [agendaCapacityFlags.createdByUserId], references: [users.id] })
+}));
+
 export const expenseCategoryRelations = relations(expenseCategories, ({ one, many }) => ({
   diveCenter: one(diveCenters, { fields: [expenseCategories.diveCenterId], references: [diveCenters.id] }),
   expenses: many(expenses)
@@ -336,6 +356,7 @@ export type Expense = typeof expenses.$inferSelect;
 export type ExpensePaymentMethod = typeof expensePaymentMethodEnum.enumValues[number];
 export type AgendaItem = typeof agendaItems.$inferSelect;
 export type AgendaNotice = typeof agendaNotices.$inferSelect;
+export type AgendaCapacityFlag = typeof agendaCapacityFlags.$inferSelect;
 export type StaffMember = typeof staffMembers.$inferSelect;
 export type StaffRole = typeof staffRoleEnum.enumValues[number];
 export type StaffAffiliation = typeof staffAffiliationEnum.enumValues[number];

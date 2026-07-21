@@ -3,6 +3,7 @@ import { WeeklyAgenda } from "@/components/agenda/weekly-agenda";
 import { getCurrentProfile } from "@/lib/auth/roles";
 import {
   listActivitiesForCenter,
+  listAgendaCapacityFlagsForCenter,
   listAgendaItemsForCenter,
   listAgendaNoticesForCenter,
   listSalesForCenter,
@@ -14,12 +15,13 @@ export const metadata = { title: "Agenda" };
 export default async function AdminAgendaPage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
   const profile = await getCurrentProfile();
   const diveCenterId = profile.diveCenterId as string;
-  const [sales, items, notices, staff, activities, params] = await Promise.all([
+  const [sales, items, notices, staff, activities, capacityFlags, params] = await Promise.all([
     listSalesForCenter(diveCenterId),
     listAgendaItemsForCenter(diveCenterId),
     listAgendaNoticesForCenter(diveCenterId),
     listStaffMembersForCenter(diveCenterId),
     listActivitiesForCenter(diveCenterId),
+    listAgendaCapacityFlagsForCenter(diveCenterId),
     searchParams
   ]);
   return (
@@ -37,6 +39,7 @@ export default async function AdminAgendaPage({ searchParams }: { searchParams: 
         entries={sales}
         items={items}
         notices={notices}
+        fullDays={capacityFlags.map((flag) => flag.flagDate)}
         responsibles={staff}
         basePath="/admin/agenda"
         week={params.week}

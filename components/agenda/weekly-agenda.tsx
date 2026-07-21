@@ -164,6 +164,7 @@ export function WeeklyAgenda({
   entries,
   items = [],
   notices = [],
+  fullDays = [],
   responsibles = [],
   basePath,
   week,
@@ -173,6 +174,7 @@ export function WeeklyAgenda({
   entries: AgendaEntry[];
   items?: AgendaManualItem[];
   notices?: AgendaNotice[];
+  fullDays?: string[];
   responsibles?: Responsible[];
   basePath: string;
   week?: string;
@@ -187,17 +189,24 @@ export function WeeklyAgenda({
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [deletingNoticeId, setDeletingNoticeId] = useState<string | null>(null);
   const [reportDayKey, setReportDayKey] = useState<string | null>(null);
-  // Puramente visual: no persiste en el servidor, solo mientras la
-  // página sigue abierta.
-  const [fullDays, setFullDays] = useState<Set<string>>(new Set());
+  const [togglingFullKey, setTogglingFullKey] = useState<string | null>(null);
+  const fullDaySet = new Set(fullDays);
 
-  function toggleFull(key: string) {
-    setFullDays((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+  // Compartido entre todo el equipo: se guarda en el servidor para
+  // que el vendedor vea al toque si el admin marcó el bote lleno.
+  async function toggleFull(key: string) {
+    setTogglingFullKey(key);
+    if (fullDaySet.has(key)) {
+      await fetch(`/api/admin/agenda/capacity/${key}`, { method: "DELETE" });
+    } else {
+      await fetch("/api/admin/agenda/capacity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ flagDate: key })
+      });
+    }
+    setTogglingFullKey(null);
+    router.refresh();
   }
   const start = startOfWeek(parseDate(week));
   const days = Array.from({ length: 7 }, (_, index) => {
@@ -368,23 +377,24 @@ export function WeeklyAgenda({
                   </div>
                 ) : null}
                 {snorkelQty > 0 || diverQty > 0 ? (
-                  <div className={`rounded-md border px-2 py-1.5 text-[11px] ${fullDays.has(key) ? "border-red-300 bg-red-50 text-red-700" : "bg-muted/40 text-muted-foreground"}`}>
+                  <div className={`rounded-md border px-2 py-1.5 text-[11px] ${fullDaySet.has(key) ? "border-red-300 bg-red-50 text-red-700" : "bg-muted/40 text-muted-foreground"}`}>
                     <div className="mb-1 flex items-center justify-between gap-2">
-                      <p className="font-semibold uppercase tracking-wide">{fullDays.has(key) ? "Bote lleno" : "Cupo propias del centro"}</p>
+                      <p className="font-semibold uppercase tracking-wide">{fullDaySet.has(key) ? "Bote lleno" : "Cupo propias del centro"}</p>
                       <button
                         type="button"
                         role="switch"
-                        aria-checked={fullDays.has(key)}
+                        aria-checked={fullDaySet.has(key)}
                         aria-label="Marcar bote lleno"
                         title="Marcar bote lleno"
+                        disabled={togglingFullKey === key}
                         onClick={() => toggleFull(key)}
-                        className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${fullDays.has(key) ? "bg-red-600" : "bg-muted-foreground/30"}`}
+                        className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${fullDaySet.has(key) ? "bg-red-600" : "bg-muted-foreground/30"}`}
                       >
-                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${fullDays.has(key) ? "translate-x-3.5" : "translate-x-0.5"}`} />
+                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${fullDaySet.has(key) ? "translate-x-3.5" : "translate-x-0.5"}`} />
                       </button>
                     </div>
-                    <p>Buzos: <span className={`font-semibold ${fullDays.has(key) ? "text-red-700" : "text-foreground"}`}>{diverQty}</span> · Snorkel: <span className={`font-semibold ${fullDays.has(key) ? "text-red-700" : "text-foreground"}`}>{snorkelQty}</span></p>
-                    <p>Responsables asignados: <span className={`font-semibold ${fullDays.has(key) ? "text-red-700" : "text-foreground"}`}>{responsibleCount}</span></p>
+                    <p>Buzos: <span className={`font-semibold ${fullDaySet.has(key) ? "text-red-700" : "text-foreground"}`}>{diverQty}</span> · Snorkel: <span className={`font-semibold ${fullDaySet.has(key) ? "text-red-700" : "text-foreground"}`}>{snorkelQty}</span></p>
+                    <p>Responsables asignados: <span className={`font-semibold ${fullDaySet.has(key) ? "text-red-700" : "text-foreground"}`}>{responsibleCount}</span></p>
                   </div>
                 ) : null}
               </div>
