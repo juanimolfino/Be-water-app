@@ -86,6 +86,9 @@ export const activities = pgTable("activities", {
   rackPrice: numeric("rack_price", { precision: 10, scale: 2 }),
   netPrice: numeric("net_price", { precision: 10, scale: 2 }),
   commissionAmount: numeric("commission_amount", { precision: 10, scale: 2 }),
+  // Precio total según cantidad de personas, ej. {"1":"500.00","2":"540.00"}.
+  // La clave "1" siempre coincide con rackPrice. Null = precio único (rackPrice).
+  tieredPricing: jsonb("tiered_pricing").$type<Record<string, string>>(),
   currency: currencyEnum("currency").default("USD").notNull(),
   website: text("website"),
   phone: text("phone"),

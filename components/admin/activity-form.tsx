@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Info } from "lucide-react";
+import { Info, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,6 +45,16 @@ const initialState = {
   whatYouWillSee: ""
 };
 
+type TierRow = { quantity: string; price: string };
+
+function tierRowsFromActivity(activity?: Activity): TierRow[] {
+  if (!activity?.tieredPricing) return [];
+  return Object.entries(activity.tieredPricing)
+    .filter(([quantity]) => quantity !== "1")
+    .map(([quantity, price]) => ({ quantity, price }))
+    .sort((a, b) => Number(a.quantity) - Number(b.quantity));
+}
+
 function formStateFromActivity(activity?: Activity) {
   if (!activity) return initialState;
   return {
@@ -74,10 +84,25 @@ function formStateFromActivity(activity?: Activity) {
 export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activity; onSaved?: () => void; onCancel?: () => void }) {
   const router = useRouter();
   const [form, setForm] = useState(() => formStateFromActivity(activity));
+  const [hasTieredPricing, setHasTieredPricing] = useState(() => Boolean(activity?.tieredPricing));
+  const [tierRows, setTierRows] = useState<TierRow[]>(() => tierRowsFromActivity(activity));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const isEditing = Boolean(activity);
+
+  function addTierRow() {
+    const lastQuantity = tierRows.length > 0 ? Number(tierRows[tierRows.length - 1].quantity) : 1;
+    setTierRows((prev) => [...prev, { quantity: String(lastQuantity + 1), price: "" }]);
+  }
+
+  function updateTierRow(index: number, key: keyof TierRow, value: string) {
+    setTierRows((prev) => prev.map((row, rowIndex) => (rowIndex === index ? { ...row, [key]: value } : row)));
+  }
+
+  function removeTierRow(index: number) {
+    setTierRows((prev) => prev.filter((_, rowIndex) => rowIndex !== index));
+  }
 
   function update<K extends keyof typeof initialState>(key: K, value: (typeof initialState)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -92,10 +117,30 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
     }));
   }
 
+  function buildTieredPricing(): Record<string, string> | null {
+    if (!hasTieredPricing) return null;
+    const tiered: Record<string, string> = { "1": form.rackPrice };
+    for (const row of tierRows) {
+      const quantity = Number(row.quantity);
+      if (!Number.isInteger(quantity) || quantity < 2) throw new Error("Cada cantidad de personas debe ser un número entero mayor a 1.");
+      if (tiered[String(quantity)]) throw new Error(`Ya cargaste un precio para ${quantity} personas.`);
+      if (!row.price || !Number.isFinite(Number(row.price)) || Number(row.price) <= 0) throw new Error(`Ingresá un precio válido para ${quantity} personas.`);
+      tiered[String(quantity)] = Number(row.price).toFixed(2);
+    }
+    return tiered;
+  }
+
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setLoading(true);
     setError(null);
+    let tieredPricing: Record<string, string> | null;
+    try {
+      tieredPricing = buildTieredPricing();
+    } catch (tierError) {
+      setError(tierError instanceof Error ? tierError.message : "Revisá los precios por cantidad de personas.");
+      return;
+    }
+    setLoading(true);
     const res = await fetch(activity ? `/api/admin/activities/${activity.id}` : "/api/admin/activities", {
       method: activity ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
@@ -104,7 +149,8 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
         isOwnActivity: form.isOwnActivity === "own",
         commissionAmount: form.isOwnActivity === "third_party"
           ? calculateThirdPartySellerCommission(form.rackPrice, form.netPrice) ?? ""
-          : form.commissionAmount
+          : form.commissionAmount,
+        tieredPricing
       })
     });
     setLoading(false);
@@ -117,6 +163,8 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
       onSaved?.();
     } else {
       setForm(initialState);
+      setHasTieredPricing(false);
+      setTierRows([]);
       setOpen(false);
     }
     router.refresh();
@@ -174,10 +222,16 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
           </select>
         </Field>
         <Field
-          label="Precio al cliente"
-          helpText="Precio final que paga el cliente por cada unidad de la actividad."
+          label={hasTieredPricing ? "Precio para 1 persona" : "Precio al cliente"}
+          helpText={hasTieredPricing ? "Precio para una sola persona. Marcá el precio de 2 o más abajo." : "Precio final que paga el cliente por cada unidad de la actividad."}
         >
           <Input required inputMode="decimal" value={form.rackPrice} onChange={(e) => update("rackPrice", e.target.value)} placeholder="130" />
+        </Field>
+        <Field label="Precio según cantidad de personas">
+          <label className="flex h-10 items-center gap-2 rounded-md border bg-background px-3 text-sm">
+            <input type="checkbox" checked={hasTieredPricing} onChange={(e) => setHasTieredPricing(e.target.checked)} />
+            Esta actividad tiene precios distintos por cantidad de personas
+          </label>
         </Field>
         {form.isOwnActivity === "third_party" ? (
           <>
@@ -230,6 +284,47 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
           <Input value={form.tourLocation} onChange={(e) => update("tourLocation", e.target.value)} />
         </Field>
       </div>
+      {hasTieredPricing ? (
+        <div className="rounded-md border bg-muted/30 p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold">Precio por cantidad de personas</p>
+              <p className="text-xs text-muted-foreground">1 persona = {form.rackPrice || "—"} {form.currency}. Agregá el resto de las cantidades que ofrecés.</p>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={addTierRow}>
+              <Plus className="h-4 w-4" /> Agregar cantidad
+            </Button>
+          </div>
+          {tierRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Todavía no agregaste otras cantidades.</p>
+          ) : (
+            <div className="space-y-2">
+              {tierRows.map((row, index) => (
+                <div key={index} className="grid grid-cols-[6rem_1fr_auto] items-center gap-2">
+                  <Input
+                    type="number"
+                    min={2}
+                    aria-label="Cantidad de personas"
+                    value={row.quantity}
+                    onChange={(e) => updateTierRow(index, "quantity", e.target.value)}
+                    placeholder="Personas"
+                  />
+                  <Input
+                    inputMode="decimal"
+                    aria-label="Precio total"
+                    value={row.price}
+                    onChange={(e) => updateTierRow(index, "price", e.target.value)}
+                    placeholder={`Precio total en ${form.currency}`}
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => removeTierRow(index)} aria-label="Quitar cantidad" title="Quitar cantidad">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Qué incluye">
           <Textarea value={form.includes} onChange={(e) => update("includes", e.target.value)} />

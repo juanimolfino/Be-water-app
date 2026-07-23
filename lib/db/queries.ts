@@ -313,6 +313,7 @@ type ActivityDetails = {
   rackPrice?: string;
   netPrice?: string;
   commissionAmount?: string;
+  tieredPricing?: Record<string, string> | null;
   currency: Currency;
   website?: string;
   phone?: string;
@@ -337,6 +338,7 @@ function activityValues(input: ActivityDetails) {
     rackPrice: input.rackPrice || null,
     netPrice: input.netPrice || null,
     commissionAmount: input.commissionAmount || null,
+    tieredPricing: input.tieredPricing || null,
     currency: input.currency,
     website: input.website || null,
     phone: input.phone || null,

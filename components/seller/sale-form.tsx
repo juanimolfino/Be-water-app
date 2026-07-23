@@ -67,19 +67,33 @@ export function SaleForm({
       : "0.00";
   }, [isAdminSale, quantity, selectedActivity, unitPrice]);
 
+  function computeUnitPrice(forActivity: Activity | undefined, method: (typeof paymentMethods)[number]["value"], forQuantity: number) {
+    if (method === "referral") return "";
+    const tierPrice = forActivity?.tieredPricing?.[String(forQuantity)];
+    if (tierPrice) return (Number(tierPrice) / forQuantity).toFixed(2);
+    return calculateSaleUnitPrice(forActivity?.rackPrice ?? null, method) ?? "";
+  }
+
   function onSelectActivity(id: string) {
     setActivityId(id);
     const activity = activities.find((item) => item.id === id);
     if (activity) {
-      setUnitPrice(paymentMethod === "referral" ? "" : calculateSaleUnitPrice(activity.rackPrice, paymentMethod) ?? "");
+      setUnitPrice(computeUnitPrice(activity, paymentMethod, quantity));
       setCurrency(activity.currency);
     }
   }
 
   function onPaymentMethodChange(method: (typeof paymentMethods)[number]["value"]) {
     setPaymentMethod(method);
-    setUnitPrice(method === "referral" ? "" : calculateSaleUnitPrice(selectedActivity?.rackPrice ?? null, method) ?? "");
+    setUnitPrice(computeUnitPrice(selectedActivity, method, quantity));
   }
+
+  function onQuantityChange(nextQuantity: number) {
+    setQuantity(nextQuantity);
+    setUnitPrice(computeUnitPrice(selectedActivity, paymentMethod, nextQuantity));
+  }
+
+  const tierPriceForQuantity = selectedActivity?.tieredPricing?.[String(quantity)];
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -162,8 +176,13 @@ export function SaleForm({
             min={1}
             required
             value={quantity}
-            onChange={(event) => setQuantity(Number(event.target.value))}
+            onChange={(event) => onQuantityChange(Number(event.target.value))}
           />
+          {tierPriceForQuantity ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Precio para {quantity} {quantity === 1 ? "persona" : "personas"}: <span className="font-medium text-foreground">{currency === "USD" ? "$" : "₡"}{tierPriceForQuantity}</span>
+            </p>
+          ) : null}
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Fecha del tour</label>

@@ -97,6 +97,21 @@ export function ActivityCard({ activity, onEdit, onDelete }: { activity: Activit
         <Row label="Qué llevar" value={activity.whatToBring} />
         <Row label="Qué vas a ver" value={activity.whatYouWillSee} />
       </dl>
+
+      {activity.tieredPricing ? (
+        <div className="mt-4 rounded-md border bg-muted/30 p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Precio por cantidad de personas</p>
+          <div className="flex flex-wrap gap-2 text-sm">
+            {Object.entries(activity.tieredPricing)
+              .sort(([a], [b]) => Number(a) - Number(b))
+              .map(([quantity, price]) => (
+                <span key={quantity} className="rounded-md border bg-card px-2 py-1">
+                  <span className="text-muted-foreground">{quantity} {quantity === "1" ? "persona" : "personas"}:</span> <span className="font-semibold">{money(price, activity.currency)}</span>
+                </span>
+              ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
