@@ -13,6 +13,7 @@ const schema = z.object({
   netPrice: z.string().trim().optional(),
   commissionAmount: z.string().trim().optional(),
   tieredPricing: z.record(z.string(), z.string()).nullable().optional(),
+  tieredNetPricing: z.record(z.string(), z.string()).nullable().optional(),
   currency: z.enum(["CRC", "USD"]),
   website: z.string().trim().url().optional().or(z.literal("")),
   phone: z.string().trim().optional(),
@@ -66,6 +67,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     netPrice: parsed.data.isOwnActivity ? undefined : parsed.data.netPrice,
     commissionAmount,
     tieredPricing: parsed.data.tieredPricing || null,
+    tieredNetPricing: parsed.data.tieredNetPricing || null,
     website: parsed.data.isOwnActivity ? undefined : parsed.data.website
   });
   if (!activity) return NextResponse.json({ error: "Actividad no encontrada" }, { status: 404 });

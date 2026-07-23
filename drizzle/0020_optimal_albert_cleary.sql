@@ -1,0 +1,1 @@
+ALTER TABLE "activities" ADD COLUMN "tiered_net_pricing" jsonb;

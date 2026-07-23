@@ -45,13 +45,13 @@ const initialState = {
   whatYouWillSee: ""
 };
 
-type TierRow = { quantity: string; price: string };
+type TierRow = { quantity: string; price: string; netPrice: string };
 
 function tierRowsFromActivity(activity?: Activity): TierRow[] {
   if (!activity?.tieredPricing) return [];
   return Object.entries(activity.tieredPricing)
     .filter(([quantity]) => quantity !== "1")
-    .map(([quantity, price]) => ({ quantity, price }))
+    .map(([quantity, price]) => ({ quantity, price, netPrice: activity.tieredNetPricing?.[quantity] ?? "" }))
     .sort((a, b) => Number(a.quantity) - Number(b.quantity));
 }
 
@@ -93,7 +93,7 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
 
   function addTierRow() {
     const lastQuantity = tierRows.length > 0 ? Number(tierRows[tierRows.length - 1].quantity) : 1;
-    setTierRows((prev) => [...prev, { quantity: String(lastQuantity + 1), price: "" }]);
+    setTierRows((prev) => [...prev, { quantity: String(lastQuantity + 1), price: "", netPrice: "" }]);
   }
 
   function updateTierRow(index: number, key: keyof TierRow, value: string) {
@@ -117,25 +117,32 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
     }));
   }
 
-  function buildTieredPricing(): Record<string, string> | null {
-    if (!hasTieredPricing) return null;
+  function buildTieredPricing(): { tieredPricing: Record<string, string> | null; tieredNetPricing: Record<string, string> | null } {
+    if (!hasTieredPricing) return { tieredPricing: null, tieredNetPricing: null };
+    const isThirdParty = form.isOwnActivity === "third_party";
     const tiered: Record<string, string> = { "1": form.rackPrice };
+    const tieredNet: Record<string, string> = isThirdParty ? { "1": form.netPrice } : {};
     for (const row of tierRows) {
       const quantity = Number(row.quantity);
       if (!Number.isInteger(quantity) || quantity < 2) throw new Error("Cada cantidad de personas debe ser un número entero mayor a 1.");
       if (tiered[String(quantity)]) throw new Error(`Ya cargaste un precio para ${quantity} personas.`);
       if (!row.price || !Number.isFinite(Number(row.price)) || Number(row.price) <= 0) throw new Error(`Ingresá un precio válido para ${quantity} personas.`);
       tiered[String(quantity)] = Number(row.price).toFixed(2);
+      if (isThirdParty && row.netPrice) {
+        if (!Number.isFinite(Number(row.netPrice)) || Number(row.netPrice) < 0) throw new Error(`Ingresá un costo de proveedor válido para ${quantity} personas.`);
+        tieredNet[String(quantity)] = Number(row.netPrice).toFixed(2);
+      }
     }
-    return tiered;
+    return { tieredPricing: tiered, tieredNetPricing: isThirdParty ? tieredNet : null };
   }
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
     let tieredPricing: Record<string, string> | null;
+    let tieredNetPricing: Record<string, string> | null;
     try {
-      tieredPricing = buildTieredPricing();
+      ({ tieredPricing, tieredNetPricing } = buildTieredPricing());
     } catch (tierError) {
       setError(tierError instanceof Error ? tierError.message : "Revisá los precios por cantidad de personas.");
       return;
@@ -150,7 +157,8 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
         commissionAmount: form.isOwnActivity === "third_party"
           ? calculateThirdPartySellerCommission(form.rackPrice, form.netPrice) ?? ""
           : form.commissionAmount,
-        tieredPricing
+        tieredPricing,
+        tieredNetPricing
       })
     });
     setLoading(false);
@@ -289,7 +297,10 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
               <p className="text-sm font-semibold">Precio por cantidad de personas</p>
-              <p className="text-xs text-muted-foreground">1 persona = {form.rackPrice || "—"} {form.currency}. Agregá el resto de las cantidades que ofrecés.</p>
+              <p className="text-xs text-muted-foreground">
+                1 persona = {form.rackPrice || "—"} {form.currency}
+                {form.isOwnActivity === "third_party" ? ` (costo proveedor ${form.netPrice || "—"})` : ""}. Agregá el resto de las cantidades que ofrecés.
+              </p>
             </div>
             <Button type="button" variant="outline" size="sm" onClick={addTierRow}>
               <Plus className="h-4 w-4" /> Agregar cantidad
@@ -299,8 +310,16 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
             <p className="text-sm text-muted-foreground">Todavía no agregaste otras cantidades.</p>
           ) : (
             <div className="space-y-2">
+              {form.isOwnActivity === "third_party" ? (
+                <div className="grid grid-cols-[6rem_1fr_1fr_auto] gap-2 text-xs font-medium text-muted-foreground">
+                  <span>Personas</span>
+                  <span>Precio total</span>
+                  <span>Costo proveedor</span>
+                  <span />
+                </div>
+              ) : null}
               {tierRows.map((row, index) => (
-                <div key={index} className="grid grid-cols-[6rem_1fr_auto] items-center gap-2">
+                <div key={index} className={`grid items-center gap-2 ${form.isOwnActivity === "third_party" ? "grid-cols-[6rem_1fr_1fr_auto]" : "grid-cols-[6rem_1fr_auto]"}`}>
                   <Input
                     type="number"
                     min={2}
@@ -316,6 +335,15 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
                     onChange={(e) => updateTierRow(index, "price", e.target.value)}
                     placeholder={`Precio total en ${form.currency}`}
                   />
+                  {form.isOwnActivity === "third_party" ? (
+                    <Input
+                      inputMode="decimal"
+                      aria-label="Costo de proveedor"
+                      value={row.netPrice}
+                      onChange={(e) => updateTierRow(index, "netPrice", e.target.value)}
+                      placeholder="Costo proveedor (opcional)"
+                    />
+                  ) : null}
                   <Button type="button" variant="ghost" size="sm" onClick={() => removeTierRow(index)} aria-label="Quitar cantidad" title="Quitar cantidad">
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -323,6 +351,11 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
               ))}
             </div>
           )}
+          {form.isOwnActivity === "third_party" ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Si dejás el costo de proveedor vacío para una cantidad, se usa el costo de proveedor base ({form.netPrice || "—"}) para calcular la comisión de esa cantidad.
+            </p>
+          ) : null}
         </div>
       ) : null}
       <div className="grid gap-4 md:grid-cols-2">

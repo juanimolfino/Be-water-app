@@ -4,6 +4,7 @@ import { ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { WhatsAppLink } from "@/components/activities/whatsapp-link";
+import { calculateThirdPartySellerCommission } from "@/lib/activities/pricing";
 import type { Activity } from "@/lib/db/schema";
 
 const categoryLabels: Record<string, string> = {
@@ -104,11 +105,16 @@ export function ActivityCard({ activity, onEdit, onDelete }: { activity: Activit
           <div className="flex flex-wrap gap-2 text-sm">
             {Object.entries(activity.tieredPricing)
               .sort(([a], [b]) => Number(a) - Number(b))
-              .map(([quantity, price]) => (
-                <span key={quantity} className="rounded-md border bg-card px-2 py-1">
-                  <span className="text-muted-foreground">{quantity} {quantity === "1" ? "persona" : "personas"}:</span> <span className="font-semibold">{money(price, activity.currency)}</span>
-                </span>
-              ))}
+              .map(([quantity, price]) => {
+                const netPriceForTier = activity.tieredNetPricing?.[quantity] ?? activity.netPrice ?? "";
+                const commission = !activity.isOwnActivity ? calculateThirdPartySellerCommission(price, netPriceForTier) : null;
+                return (
+                  <span key={quantity} className="rounded-md border bg-card px-2 py-1">
+                    <span className="text-muted-foreground">{quantity} {quantity === "1" ? "persona" : "personas"}:</span> <span className="font-semibold">{money(price, activity.currency)}</span>
+                    {commission ? <span className="text-muted-foreground"> (comisión {money(commission, activity.currency)})</span> : null}
+                  </span>
+                );
+              })}
           </div>
         </div>
       ) : null}

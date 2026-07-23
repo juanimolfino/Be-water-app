@@ -48,24 +48,37 @@ export function SaleForm({
 
   const selectedActivity = activities.find((activity) => activity.id === activityId);
   const isReferral = paymentMethod === "referral";
+  const tierPriceForQuantity = selectedActivity?.tieredPricing?.[String(quantity)];
+  const tierNetPriceForQuantity = selectedActivity?.tieredNetPricing?.[String(quantity)];
+  // Cuando hay una tarifa cargada para esta cantidad exacta, precio y
+  // costo ya son el total del grupo (no por unidad): la comisión sale
+  // directo de esa tarifa, sin volver a multiplicar por la cantidad.
   const estimatedCommission = useMemo(() => {
     if (isAdminSale) return "0.00";
     if (!selectedActivity?.isOwnActivity) {
+      if (tierPriceForQuantity) {
+        const commission = calculateThirdPartySellerCommission(tierPriceForQuantity, tierNetPriceForQuantity ?? selectedActivity?.netPrice ?? "");
+        return commission ?? "0.00";
+      }
       const perUnit = calculateThirdPartySellerCommission(unitPrice, selectedActivity?.netPrice ?? "");
       return perUnit ? (Number(perUnit) * quantity).toFixed(2) : "0.00";
     }
     const perUnit = Number(selectedActivity?.commissionAmount ?? 0);
     return (perUnit * quantity).toFixed(2);
-  }, [isAdminSale, selectedActivity, quantity, unitPrice]);
+  }, [isAdminSale, selectedActivity, quantity, unitPrice, tierPriceForQuantity, tierNetPriceForQuantity]);
 
   const estimatedCenterMargin = useMemo(() => {
     if (!isAdminSale || selectedActivity?.isOwnActivity) return null;
+    if (tierPriceForQuantity) {
+      const margin = Number(tierPriceForQuantity) - Number(tierNetPriceForQuantity ?? selectedActivity?.netPrice ?? 0);
+      return Number.isFinite(margin) && margin > 0 ? margin.toFixed(2) : "0.00";
+    }
     const providerCost = Number(selectedActivity?.netPrice ?? 0);
     const customerPrice = Number(unitPrice);
     return Number.isFinite(customerPrice) && customerPrice > providerCost
       ? ((customerPrice - providerCost) * quantity).toFixed(2)
       : "0.00";
-  }, [isAdminSale, quantity, selectedActivity, unitPrice]);
+  }, [isAdminSale, quantity, selectedActivity, unitPrice, tierPriceForQuantity, tierNetPriceForQuantity]);
 
   function computeUnitPrice(forActivity: Activity | undefined, method: (typeof paymentMethods)[number]["value"], forQuantity: number) {
     if (method === "referral") return "";
@@ -93,7 +106,7 @@ export function SaleForm({
     setUnitPrice(computeUnitPrice(selectedActivity, paymentMethod, nextQuantity));
   }
 
-  const tierPriceForQuantity = selectedActivity?.tieredPricing?.[String(quantity)];
+  const missingTierForQuantity = Boolean(selectedActivity?.tieredPricing) && !tierPriceForQuantity;
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -183,6 +196,11 @@ export function SaleForm({
               Precio para {quantity} {quantity === 1 ? "persona" : "personas"}: <span className="font-medium text-foreground">{currency === "USD" ? "$" : "₡"}{tierPriceForQuantity}</span>
             </p>
           ) : null}
+          {missingTierForQuantity ? (
+            <p className="mt-1 text-xs font-medium text-amber-700">
+              No hay un precio cargado para {quantity} {quantity === 1 ? "persona" : "personas"} en esta actividad. Ajustá el precio unitario manualmente.
+            </p>
+          ) : null}
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Fecha del tour</label>
@@ -194,7 +212,7 @@ export function SaleForm({
             <Input
               inputMode="decimal"
               required
-              readOnly={!isReferral}
+              readOnly={!isReferral && !missingTierForQuantity}
               value={unitPrice}
               onChange={(event) => setUnitPrice(event.target.value)}
               placeholder={isReferral ? "Monto cobrado" : undefined}
