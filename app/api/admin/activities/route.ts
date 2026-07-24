@@ -14,6 +14,7 @@ const schema = z.object({
   commissionAmount: z.string().trim().optional(),
   tieredPricing: z.record(z.string(), z.string()).nullable().optional(),
   tieredNetPricing: z.record(z.string(), z.string()).nullable().optional(),
+  tieredCommission: z.record(z.string(), z.string()).nullable().optional(),
   currency: z.enum(["CRC", "USD"]),
   website: z.string().trim().url().optional().or(z.literal("")),
   phone: z.string().trim().optional(),
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
     commissionAmount,
     tieredPricing: parsed.data.tieredPricing || null,
     tieredNetPricing: parsed.data.tieredNetPricing || null,
+    tieredCommission: parsed.data.tieredCommission || null,
     website: parsed.data.isOwnActivity ? undefined : parsed.data.website,
     diveCenterId: profile.diveCenterId,
     createdByUserId: profile.id

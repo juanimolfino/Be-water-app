@@ -148,6 +148,13 @@
       "when": 1784842164055,
       "tag": "0020_optimal_albert_cleary",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784856441673,
+      "tag": "0021_worthless_black_queen",
+      "breakpoints": true
     }
   ]
 }

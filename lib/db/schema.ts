@@ -93,6 +93,10 @@ export const activities = pgTable("activities", {
   // forma que tieredPricing. Si falta una cantidad, se usa netPrice como
   // costo de referencia para calcular la comisión de esa cantidad.
   tieredNetPricing: jsonb("tiered_net_pricing").$type<Record<string, string>>(),
+  // Comisión del vendedor por cantidad de personas, cargada directamente
+  // (no derivada), misma forma que tieredPricing. La clave "1" coincide
+  // con commissionAmount.
+  tieredCommission: jsonb("tiered_commission").$type<Record<string, string>>(),
   currency: currencyEnum("currency").default("USD").notNull(),
   website: text("website"),
   phone: text("phone"),

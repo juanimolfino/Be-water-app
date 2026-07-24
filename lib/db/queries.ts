@@ -315,6 +315,7 @@ type ActivityDetails = {
   commissionAmount?: string;
   tieredPricing?: Record<string, string> | null;
   tieredNetPricing?: Record<string, string> | null;
+  tieredCommission?: Record<string, string> | null;
   currency: Currency;
   website?: string;
   phone?: string;
@@ -341,6 +342,7 @@ function activityValues(input: ActivityDetails) {
     commissionAmount: input.commissionAmount || null,
     tieredPricing: input.tieredPricing || null,
     tieredNetPricing: input.tieredNetPricing || null,
+    tieredCommission: input.tieredCommission || null,
     currency: input.currency,
     website: input.website || null,
     phone: input.phone || null,

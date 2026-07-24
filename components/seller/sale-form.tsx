@@ -49,28 +49,25 @@ export function SaleForm({
   const selectedActivity = activities.find((activity) => activity.id === activityId);
   const isReferral = paymentMethod === "referral";
   const tierPriceForQuantity = selectedActivity?.tieredPricing?.[String(quantity)];
-  const tierNetPriceForQuantity = selectedActivity?.tieredNetPricing?.[String(quantity)];
+  const tierCommissionForQuantity = selectedActivity?.tieredCommission?.[String(quantity)];
   // Cuando hay una tarifa cargada para esta cantidad exacta, precio y
-  // costo ya son el total del grupo (no por unidad): la comisión sale
+  // comisión ya son el total del grupo (no por unidad): la comisión sale
   // directo de esa tarifa, sin volver a multiplicar por la cantidad.
   const estimatedCommission = useMemo(() => {
     if (isAdminSale) return "0.00";
+    if (tierPriceForQuantity && tierCommissionForQuantity) return tierCommissionForQuantity;
     if (!selectedActivity?.isOwnActivity) {
-      if (tierPriceForQuantity) {
-        const commission = calculateThirdPartySellerCommission(tierPriceForQuantity, tierNetPriceForQuantity ?? selectedActivity?.netPrice ?? "");
-        return commission ?? "0.00";
-      }
       const perUnit = calculateThirdPartySellerCommission(unitPrice, selectedActivity?.netPrice ?? "");
       return perUnit ? (Number(perUnit) * quantity).toFixed(2) : "0.00";
     }
     const perUnit = Number(selectedActivity?.commissionAmount ?? 0);
     return (perUnit * quantity).toFixed(2);
-  }, [isAdminSale, selectedActivity, quantity, unitPrice, tierPriceForQuantity, tierNetPriceForQuantity]);
+  }, [isAdminSale, selectedActivity, quantity, unitPrice, tierPriceForQuantity, tierCommissionForQuantity]);
 
   const estimatedCenterMargin = useMemo(() => {
     if (!isAdminSale || selectedActivity?.isOwnActivity) return null;
     if (tierPriceForQuantity) {
-      const margin = Number(tierPriceForQuantity) - Number(tierNetPriceForQuantity ?? selectedActivity?.netPrice ?? 0);
+      const margin = Number(tierPriceForQuantity) - Number(selectedActivity?.netPrice ?? 0);
       return Number.isFinite(margin) && margin > 0 ? margin.toFixed(2) : "0.00";
     }
     const providerCost = Number(selectedActivity?.netPrice ?? 0);
@@ -78,7 +75,7 @@ export function SaleForm({
     return Number.isFinite(customerPrice) && customerPrice > providerCost
       ? ((customerPrice - providerCost) * quantity).toFixed(2)
       : "0.00";
-  }, [isAdminSale, quantity, selectedActivity, unitPrice, tierPriceForQuantity, tierNetPriceForQuantity]);
+  }, [isAdminSale, quantity, selectedActivity, unitPrice, tierPriceForQuantity]);
 
   function computeUnitPrice(forActivity: Activity | undefined, method: (typeof paymentMethods)[number]["value"], forQuantity: number) {
     if (method === "referral") return "";
