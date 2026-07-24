@@ -244,12 +244,11 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
             <option value="CRC">Colones (CRC)</option>
           </select>
         </Field>
-        <Field
-          label={hasTieredPricing ? "Precio para 1 persona" : "Precio al cliente"}
-          helpText={hasTieredPricing ? "Precio para una sola persona. Marcá el precio de 2 o más abajo." : "Precio final que paga el cliente por cada unidad de la actividad."}
-        >
-          <Input required inputMode="decimal" value={form.rackPrice} onChange={(e) => update("rackPrice", e.target.value)} placeholder="130" />
-        </Field>
+        {!(hasTieredPricing && form.isOwnActivity === "third_party") ? (
+          <Field label="Precio al cliente" helpText="Precio final que paga el cliente por cada unidad de la actividad.">
+            <Input required inputMode="decimal" value={form.rackPrice} onChange={(e) => update("rackPrice", e.target.value)} placeholder="130" />
+          </Field>
+        ) : null}
         {form.isOwnActivity === "third_party" ? (
           <Field label="Precio según cantidad de personas">
             <label className="flex h-10 items-center gap-2 rounded-md border bg-background px-3 text-sm">
@@ -263,71 +262,85 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
       {hasTieredPricing && form.isOwnActivity === "third_party" ? (
         <div className="rounded-md border bg-muted/30 p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold">Precio por cantidad de personas</p>
-              <p className="text-xs text-muted-foreground">
-                1 persona = {form.rackPrice || "—"} {form.currency}, proveedor {form.netPrice || "—"}, comisión {calculateThirdPartySellerCommission(form.rackPrice, form.netPrice) ?? "—"}. Agregá el resto de las cantidades que ofrecés.
-              </p>
-            </div>
+            <p className="text-sm font-semibold">Precio por cantidad de personas</p>
             <Button type="button" variant="outline" size="sm" onClick={addTierRow}>
               <Plus className="h-4 w-4" /> Agregar cantidad
             </Button>
           </div>
-          {tierRows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Todavía no agregaste otras cantidades.</p>
-          ) : (
-            <div className="space-y-2">
-              <div className="grid grid-cols-[6rem_1fr_1fr_1fr_auto] gap-2 text-xs font-medium text-muted-foreground">
-                <span>Personas</span>
-                <span>Precio final</span>
-                <span>Precio proveedor</span>
-                <span>Comisión vendedor</span>
-                <span />
-              </div>
-              {tierRows.map((row, index) => (
-                <div key={index} className="grid grid-cols-[6rem_1fr_1fr_1fr_auto] items-center gap-2">
-                  <Input
-                    type="number"
-                    min={2}
-                    aria-label="Cantidad de personas"
-                    value={row.quantity}
-                    onChange={(e) => updateTierRow(index, "quantity", e.target.value)}
-                    placeholder="Personas"
-                  />
-                  <Input
-                    inputMode="decimal"
-                    aria-label="Precio final"
-                    value={row.price}
-                    onChange={(e) => updateTierRow(index, "price", e.target.value)}
-                    placeholder={`Precio final en ${form.currency}`}
-                  />
-                  <Input
-                    inputMode="decimal"
-                    aria-label="Precio proveedor"
-                    value={row.netPrice}
-                    onChange={(e) => updateTierRow(index, "netPrice", e.target.value)}
-                    placeholder="Precio proveedor"
-                  />
-                  <Input readOnly disabled value={calculateThirdPartySellerCommission(row.price, row.netPrice) ?? "—"} aria-label="Comisión del vendedor (calculada)" />
-                  <Button type="button" variant="ghost" size="sm" onClick={() => removeTierRow(index)} aria-label="Quitar cantidad" title="Quitar cantidad">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+          <div className="space-y-2">
+            <div className="grid grid-cols-[6rem_1fr_1fr_1fr_auto] gap-2 text-xs font-medium text-muted-foreground">
+              <span>Personas</span>
+              <span>Precio final</span>
+              <span>Precio proveedor</span>
+              <span>Comisión vendedor</span>
+              <span />
             </div>
-          )}
+            <div className="grid grid-cols-[6rem_1fr_1fr_1fr_auto] items-center gap-2">
+              <Input type="number" value={1} disabled aria-label="Cantidad de personas" />
+              <Input
+                required
+                inputMode="decimal"
+                aria-label="Precio final"
+                value={form.rackPrice}
+                onChange={(e) => update("rackPrice", e.target.value)}
+                placeholder={`Precio final en ${form.currency}`}
+              />
+              <Input
+                required
+                inputMode="decimal"
+                aria-label="Precio proveedor"
+                value={form.netPrice}
+                onChange={(e) => update("netPrice", e.target.value)}
+                placeholder="Precio proveedor"
+              />
+              <Input readOnly disabled value={calculateThirdPartySellerCommission(form.rackPrice, form.netPrice) ?? "—"} aria-label="Comisión del vendedor (calculada)" />
+              <span />
+            </div>
+            {tierRows.map((row, index) => (
+              <div key={index} className="grid grid-cols-[6rem_1fr_1fr_1fr_auto] items-center gap-2">
+                <Input
+                  type="number"
+                  min={2}
+                  aria-label="Cantidad de personas"
+                  value={row.quantity}
+                  onChange={(e) => updateTierRow(index, "quantity", e.target.value)}
+                  placeholder="Personas"
+                />
+                <Input
+                  inputMode="decimal"
+                  aria-label="Precio final"
+                  value={row.price}
+                  onChange={(e) => updateTierRow(index, "price", e.target.value)}
+                  placeholder={`Precio final en ${form.currency}`}
+                />
+                <Input
+                  inputMode="decimal"
+                  aria-label="Precio proveedor"
+                  value={row.netPrice}
+                  onChange={(e) => updateTierRow(index, "netPrice", e.target.value)}
+                  placeholder="Precio proveedor"
+                />
+                <Input readOnly disabled value={calculateThirdPartySellerCommission(row.price, row.netPrice) ?? "—"} aria-label="Comisión del vendedor (calculada)" />
+                <Button type="button" variant="ghost" size="sm" onClick={() => removeTierRow(index)} aria-label="Quitar cantidad" title="Quitar cantidad">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         {form.isOwnActivity === "third_party" ? (
           <>
-            <Field
-              label="Costo del proveedor"
-              helpText="Monto que se paga al proveedor externo por cada unidad vendida."
-            >
-              <Input required inputMode="decimal" value={form.netPrice} onChange={(e) => update("netPrice", e.target.value)} placeholder="110" />
-            </Field>
+            {!hasTieredPricing ? (
+              <Field
+                label="Costo del proveedor"
+                helpText="Monto que se paga al proveedor externo por cada unidad vendida."
+              >
+                <Input required inputMode="decimal" value={form.netPrice} onChange={(e) => update("netPrice", e.target.value)} placeholder="110" />
+              </Field>
+            ) : null}
             <Field
               label="Sitio web del proveedor"
               helpText="Enlace que el vendedor puede abrir para consultar o mostrar la actividad del tercero."
@@ -336,19 +349,21 @@ export function ActivityForm({ activity, onSaved, onCancel }: { activity?: Activ
             </Field>
           </>
         ) : null}
-        <Field
-          label="Comisión del vendedor"
-          helpText={form.isOwnActivity === "third_party" ? "Para terceros, recibe automáticamente el 50% de la ganancia por unidad." : "Monto que recibe el vendedor por cada unidad de esta actividad vendida."}
-        >
-          <Input
-            required
-            inputMode="decimal"
-            disabled={form.isOwnActivity === "third_party"}
-            value={form.isOwnActivity === "third_party" ? calculateThirdPartySellerCommission(form.rackPrice, form.netPrice) ?? "" : form.commissionAmount}
-            onChange={(e) => update("commissionAmount", e.target.value)}
-            placeholder="5"
-          />
-        </Field>
+        {!hasTieredPricing ? (
+          <Field
+            label="Comisión del vendedor"
+            helpText={form.isOwnActivity === "third_party" ? "Para terceros, recibe automáticamente el 50% de la ganancia por unidad." : "Monto que recibe el vendedor por cada unidad de esta actividad vendida."}
+          >
+            <Input
+              required
+              inputMode="decimal"
+              disabled={form.isOwnActivity === "third_party"}
+              value={form.isOwnActivity === "third_party" ? calculateThirdPartySellerCommission(form.rackPrice, form.netPrice) ?? "" : form.commissionAmount}
+              onChange={(e) => update("commissionAmount", e.target.value)}
+              placeholder="5"
+            />
+          </Field>
+        ) : null}
         <Field label="Teléfono">
           <Input value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="+506 0000 0000" />
         </Field>
